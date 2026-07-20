@@ -153,8 +153,9 @@ type clientV2 struct {
 	net.Conn
 
 	// connections based on negotiated features
-	tlsConn     *tls.Conn
-	flateWriter *flate.Writer
+	tlsConn      *tls.Conn
+	flateWriter  *flate.Writer
+	snappyWriter *snappy.Writer
 
 	// reading/writing interfaces
 	Reader *bufio.Reader
@@ -588,7 +589,9 @@ func (c *clientV2) UpgradeTLS() error {
 	defer c.writeLock.Unlock()
 
 	tlsConn := tls.Server(c.Conn, c.nsqd.tlsConfig)
-	tlsConn.SetDeadline(time.Now().Add(5 * time.Second))
+	if err := tlsConn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return err
+	}
 	err := tlsConn.Handshake()
 	if err != nil {
 		return err
@@ -633,8 +636,10 @@ func (c *clientV2) UpgradeSnappy() error {
 	}
 
 	c.Reader = bufio.NewReaderSize(snappy.NewReader(conn), defaultBufferSize)
-	//lint:ignore SA1019 NewWriter is deprecated by NewBufferedWriter, but we're doing our own buffering
-	c.Writer = bufio.NewWriterSize(snappy.NewWriter(conn), c.OutputBufferSize)
+
+	sw := snappy.NewBufferedWriter(conn)
+	c.snappyWriter = sw
+	c.Writer = bufio.NewWriterSize(sw, c.OutputBufferSize)
 
 	atomic.StoreInt32(&c.Snappy, 1)
 
@@ -644,9 +649,13 @@ func (c *clientV2) UpgradeSnappy() error {
 func (c *clientV2) Flush() error {
 	var zeroTime time.Time
 	if c.HeartbeatInterval > 0 {
-		c.SetWriteDeadline(time.Now().Add(c.HeartbeatInterval))
+		if err := c.SetWriteDeadline(time.Now().Add(c.HeartbeatInterval)); err != nil {
+			return err
+		}
 	} else {
-		c.SetWriteDeadline(zeroTime)
+		if err := c.SetWriteDeadline(zeroTime); err != nil {
+			return err
+		}
 	}
 
 	err := c.Writer.Flush()
@@ -656,6 +665,10 @@ func (c *clientV2) Flush() error {
 
 	if c.flateWriter != nil {
 		return c.flateWriter.Flush()
+	}
+
+	if c.snappyWriter != nil {
+		return c.snappyWriter.Flush()
 	}
 
 	return nil

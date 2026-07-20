@@ -35,10 +35,14 @@ func PlainText(f APIHandler) APIHandler {
 		switch d := data.(type) {
 		case string:
 			w.WriteHeader(code)
-			io.WriteString(w, d)
+			if _, err := io.WriteString(w, d); err != nil {
+				return nil, err
+			}
 		case []byte:
 			w.WriteHeader(code)
-			w.Write(d)
+			if _, err := w.Write(d); err != nil {
+				return nil, err
+			}
 		default:
 			panic(fmt.Sprintf("unknown response type %T", data))
 		}
@@ -76,7 +80,9 @@ func RespondV1(w http.ResponseWriter, code int, data interface{}) {
 			response, err = json.Marshal(data)
 			if err != nil {
 				code = 500
-				data = err
+				response, _ = json.Marshal(struct {
+					Message string `json:"message"`
+				}{err.Error()})
 			}
 		}
 	}
@@ -93,7 +99,7 @@ func RespondV1(w http.ResponseWriter, code int, data interface{}) {
 	}
 	w.Header().Set("X-NSQ-Content-Type", "nsq; version=1.0")
 	w.WriteHeader(code)
-	w.Write(response)
+	_, _ = w.Write(response)
 }
 
 func Decorate(f APIHandler, ds ...Decorator) httprouter.Handle {
@@ -102,7 +108,7 @@ func Decorate(f APIHandler, ds ...Decorator) httprouter.Handle {
 		decorated = decorate(decorated)
 	}
 	return func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-		decorated(w, req, ps)
+		_, _ = decorated(w, req, ps)
 	}
 }
 

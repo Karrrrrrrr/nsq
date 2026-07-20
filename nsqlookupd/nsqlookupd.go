@@ -85,7 +85,9 @@ func (l *NSQLookupd) RealHTTPAddr() *net.TCPAddr {
 
 func (l *NSQLookupd) Exit() {
 	if l.tcpListener != nil {
-		l.tcpListener.Close()
+		if err := l.tcpListener.Close(); err != nil {
+			l.logf(LOG_ERROR, "failed to close TCP listener - %s", err)
+		}
 	}
 
 	if l.tcpServer != nil {
@@ -93,7 +95,9 @@ func (l *NSQLookupd) Exit() {
 	}
 
 	if l.httpListener != nil {
-		l.httpListener.Close()
+		if err := l.httpListener.Close(); err != nil {
+			l.logf(LOG_ERROR, "failed to close HTTP listener - %s", err)
+		}
 	}
 	l.waitGroup.Wait()
 }

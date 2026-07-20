@@ -48,7 +48,7 @@ func TestStartup(t *testing.T) {
 	opts.MemQueueSize = 100
 	opts.MaxBytesPerFile = 10240
 	_, _, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 
 	origDataPath := opts.DataPath
 
@@ -69,14 +69,16 @@ func TestStartup(t *testing.T) {
 	m, err := getMetadata(nsqd)
 	test.Nil(t, err)
 	test.Equal(t, 0, len(m.Topics))
-	nsqd.DeleteExistingTopic(topicName)
+	err = nsqd.DeleteExistingTopic(topicName)
+	test.Nil(t, err)
 	atomic.StoreInt32(&nsqd.isLoading, 0)
 
 	body := make([]byte, 256)
 	topic := nsqd.GetTopic(topicName)
 	for i := 0; i < iterations; i++ {
 		msg := NewMessage(topic.GenerateID(), body)
-		topic.PutMessage(msg)
+		err := topic.PutMessage(msg)
+		test.Nil(t, err)
 	}
 
 	t.Logf("pulling from channel")
@@ -93,10 +95,7 @@ func TestStartup(t *testing.T) {
 		test.Equal(t, body, msg.Body)
 	}
 
-	for {
-		if channel1.Depth() == int64(iterations/2) {
-			break
-		}
+	for channel1.Depth() != int64(iterations/2) {
 		time.Sleep(50 * time.Millisecond)
 	}
 
@@ -131,10 +130,7 @@ func TestStartup(t *testing.T) {
 
 	channel1 = topic.GetChannel("ch1")
 
-	for {
-		if channel1.Depth() == int64(iterations/2) {
-			break
-		}
+	for channel1.Depth() != int64(iterations/2) {
 		time.Sleep(50 * time.Millisecond)
 	}
 
@@ -163,7 +159,7 @@ func TestEphemeralTopicsAndChannels(t *testing.T) {
 	opts.Logger = test.NewTestLogger(t)
 	opts.MemQueueSize = 100
 	_, _, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 
 	topicName := "ephemeral_topic" + strconv.Itoa(int(time.Now().Unix())) + "#ephemeral"
 	doneExitChan := make(chan int)
@@ -183,7 +179,8 @@ func TestEphemeralTopicsAndChannels(t *testing.T) {
 	test.Equal(t, err, nil)
 
 	msg := NewMessage(topic.GenerateID(), body)
-	topic.PutMessage(msg)
+	err = topic.PutMessage(msg)
+	test.Nil(t, err)
 	msg = <-ephemeralChannel.memoryMsgChan
 	test.Equal(t, body, msg.Body)
 
@@ -209,7 +206,7 @@ func TestPauseMetadata(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, _, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	// avoid concurrency issue of async PersistMetadata() calls
@@ -218,7 +215,8 @@ func TestPauseMetadata(t *testing.T) {
 	topic := nsqd.GetTopic(topicName)
 	channel := topic.GetChannel("ch")
 	atomic.StoreInt32(&nsqd.isLoading, 0)
-	nsqd.PersistMetadata()
+	err := nsqd.PersistMetadata()
+	test.Nil(t, err)
 
 	var isPaused = func(n *NSQD, topicIndex int, channelIndex int) bool {
 		m, _ := getMetadata(n)
@@ -227,16 +225,20 @@ func TestPauseMetadata(t *testing.T) {
 
 	test.Equal(t, false, isPaused(nsqd, 0, 0))
 
-	channel.Pause()
+	err = channel.Pause()
+	test.Nil(t, err)
 	test.Equal(t, false, isPaused(nsqd, 0, 0))
 
-	nsqd.PersistMetadata()
+	err = nsqd.PersistMetadata()
+	test.Nil(t, err)
 	test.Equal(t, true, isPaused(nsqd, 0, 0))
 
-	channel.UnPause()
+	err = channel.UnPause()
+	test.Nil(t, err)
 	test.Equal(t, true, isPaused(nsqd, 0, 0))
 
-	nsqd.PersistMetadata()
+	err = nsqd.PersistMetadata()
+	test.Nil(t, err)
 	test.Equal(t, false, isPaused(nsqd, 0, 0))
 }
 
@@ -273,11 +275,13 @@ func TestReconfigure(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, _, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	newOpts := NewOptions()
 	newOpts.Logger = opts.Logger
+	newOpts.BroadcastTCPPort = nsqd.getOpts().BroadcastTCPPort
+	newOpts.BroadcastHTTPPort = nsqd.getOpts().BroadcastHTTPPort
 	newOpts.NSQLookupdTCPAddresses = []string{lookupd1.RealTCPAddr().String()}
 	nsqd.swapOpts(newOpts)
 	nsqd.triggerOptsNotification()
@@ -295,6 +299,8 @@ func TestReconfigure(t *testing.T) {
 
 	newOpts = NewOptions()
 	newOpts.Logger = opts.Logger
+	newOpts.BroadcastTCPPort = nsqd.getOpts().BroadcastTCPPort
+	newOpts.BroadcastHTTPPort = nsqd.getOpts().BroadcastHTTPPort
 	newOpts.NSQLookupdTCPAddresses = []string{lookupd2.RealTCPAddr().String(), lookupd3.RealTCPAddr().String()}
 	nsqd.swapOpts(newOpts)
 	nsqd.triggerOptsNotification()
@@ -327,7 +333,7 @@ func TestCluster(t *testing.T) {
 	opts.NSQLookupdTCPAddresses = []string{lookupd.RealTCPAddr().String()}
 	opts.BroadcastAddress = "127.0.0.1"
 	_, _, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "cluster_test" + strconv.Itoa(int(time.Now().Unix()))
@@ -453,7 +459,7 @@ func TestUnixSocketStartup(t *testing.T) {
 	opts.Logger = test.NewTestLogger(t)
 
 	_, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	test.Equal(t, isSocket(opts.TCPAddress), true)

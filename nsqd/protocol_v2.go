@@ -54,9 +54,13 @@ func (p *protocolV2) IOLoop(c protocol.Client) error {
 
 	for {
 		if client.HeartbeatInterval > 0 {
-			client.SetReadDeadline(time.Now().Add(client.HeartbeatInterval * 2))
+			if err := client.SetReadDeadline(time.Now().Add(client.HeartbeatInterval * 2)); err != nil {
+				return err
+			}
 		} else {
-			client.SetReadDeadline(zeroTime)
+			if err := client.SetReadDeadline(zeroTime); err != nil {
+				return err
+			}
 		}
 
 		// ReadSlice does not allocate new space for the data each request
@@ -145,9 +149,15 @@ func (p *protocolV2) Send(client *clientV2, frameType int32, data []byte) error 
 
 	var zeroTime time.Time
 	if client.HeartbeatInterval > 0 {
-		client.SetWriteDeadline(time.Now().Add(client.HeartbeatInterval))
+		if err := client.SetWriteDeadline(time.Now().Add(client.HeartbeatInterval)); err != nil {
+			client.writeLock.Unlock()
+			return err
+		}
 	} else {
-		client.SetWriteDeadline(zeroTime)
+		if err := client.SetWriteDeadline(zeroTime); err != nil {
+			client.writeLock.Unlock()
+			return err
+		}
 	}
 
 	_, err := protocol.SendFramedResponse(client.Writer, frameType, data)
@@ -357,7 +367,10 @@ func (p *protocolV2) messagePump(client *clientV2, startedChan chan bool) {
 				continue
 			}
 			msg.Attempts++
-			subChannel.StartInFlightTimeout(msg, client.ID, msgTimeout)
+			err = subChannel.StartInFlightTimeout(msg, client.ID, msgTimeout)
+			if err != nil {
+				goto exit
+			}
 			client.SendingMessage()
 			err = p.SendMessage(client, msg)
 			if err != nil {

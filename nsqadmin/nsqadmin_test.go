@@ -43,7 +43,7 @@ func TestTLSHTTPClient(t *testing.T) {
 	nsqdOpts.TLSClientAuthPolicy = "require-verify"
 	nsqdOpts.Logger = lgr
 	_, nsqdHTTPAddr, nsqd := mustStartNSQD(nsqdOpts)
-	defer os.RemoveAll(nsqdOpts.DataPath)
+	defer func() { _ = os.RemoveAll(nsqdOpts.DataPath) }()
 	defer nsqd.Exit()
 
 	opts := NewOptions()
@@ -72,7 +72,7 @@ func TestTLSHTTPClient(t *testing.T) {
 
 	resp, err := http.Get(u.String())
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	test.Equal(t, resp.StatusCode < 500, true)
 }

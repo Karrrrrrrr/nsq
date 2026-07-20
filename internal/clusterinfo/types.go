@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/blang/semver"
+	"github.com/blang/semver/v4"
 	"github.com/nsqio/nsq/internal/quantile"
 )
 

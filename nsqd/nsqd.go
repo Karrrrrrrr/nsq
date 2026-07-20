@@ -180,9 +180,9 @@ func New(opts *Options) (*NSQD, error) {
 	}
 
 	if opts.StatsdPrefix != "" {
-		var port string = fmt.Sprint(opts.BroadcastHTTPPort)
+		port := fmt.Sprint(opts.BroadcastHTTPPort)
 		statsdHostKey := statsd.HostKey(net.JoinHostPort(opts.BroadcastAddress, port))
-		prefixWithHost := strings.Replace(opts.StatsdPrefix, "%s", statsdHostKey, -1)
+		prefixWithHost := strings.ReplaceAll(opts.StatsdPrefix, "%s", statsdHostKey)
 		if prefixWithHost[len(prefixWithHost)-1] != '.' {
 			prefixWithHost += "."
 		}
@@ -335,7 +335,10 @@ func writeSyncFile(fn string, data []byte) error {
 	if err == nil {
 		err = f.Sync()
 	}
-	f.Close()
+	closeErr := f.Close()
+	if err == nil {
+		err = closeErr
+	}
 	return err
 }
 
@@ -366,7 +369,9 @@ func (n *NSQD) LoadMetadata() error {
 		}
 		topic := n.GetTopic(t.Name)
 		if t.Paused {
-			topic.Pause()
+			if err := topic.Pause(); err != nil {
+				n.logf(LOG_ERROR, "TOPIC(%s): failed to pause while loading metadata - %s", t.Name, err)
+			}
 		}
 		for _, c := range t.Channels {
 			if !protocol.IsValidChannelName(c.Name) {
@@ -375,7 +380,9 @@ func (n *NSQD) LoadMetadata() error {
 			}
 			channel := topic.GetChannel(c.Name)
 			if c.Paused {
-				channel.Pause()
+				if err := channel.Pause(); err != nil {
+					n.logf(LOG_ERROR, "CHANNEL(%s): failed to pause while loading metadata - %s", c.Name, err)
+				}
 			}
 		}
 		topic.Start()
@@ -445,7 +452,7 @@ func (n *NSQD) Exit() {
 		return
 	}
 	if n.tcpListener != nil {
-		n.tcpListener.Close()
+		_ = n.tcpListener.Close()
 	}
 
 	if n.tcpServer != nil {
@@ -453,11 +460,11 @@ func (n *NSQD) Exit() {
 	}
 
 	if n.httpListener != nil {
-		n.httpListener.Close()
+		_ = n.httpListener.Close()
 	}
 
 	if n.httpsListener != nil {
-		n.httpsListener.Close()
+		_ = n.httpsListener.Close()
 	}
 
 	n.Lock()
@@ -467,14 +474,18 @@ func (n *NSQD) Exit() {
 	}
 	n.logf(LOG_INFO, "NSQ: closing topics")
 	for _, topic := range n.topicMap {
-		topic.Close()
+		if err := topic.Close(); err != nil {
+			n.logf(LOG_ERROR, "TOPIC(%s): close failed - %s", topic.name, err)
+		}
 	}
 	n.Unlock()
 
 	n.logf(LOG_INFO, "NSQ: stopping subsystems")
 	close(n.exitChan)
 	n.waitGroup.Wait()
-	n.dl.Unlock()
+	if err := n.dl.Unlock(); err != nil {
+		n.logf(LOG_ERROR, "failed to unlock data path - %s", err)
+	}
 	n.logf(LOG_INFO, "NSQ: bye")
 	n.ctxCancel()
 }
@@ -498,7 +509,7 @@ func (n *NSQD) GetTopic(topicName string) *Topic {
 		return t
 	}
 	deleteCallback := func(t *Topic) {
-		n.DeleteExistingTopic(t.name)
+		_ = n.DeleteExistingTopic(t.name)
 	}
 	t = NewTopic(topicName, n, deleteCallback)
 	n.topicMap[topicName] = t
@@ -564,7 +575,9 @@ func (n *NSQD) DeleteExistingTopic(topicName string) error {
 	// we do this before removing the topic from map below (with no lock)
 	// so that any incoming writes will error and not create a new topic
 	// to enforce ordering
-	topic.Delete()
+	if err := topic.Delete(); err != nil {
+		return err
+	}
 
 	n.Lock()
 	delete(n.topicMap, topicName)
@@ -734,7 +747,7 @@ func buildTLSConfig(opts *Options) (*tls.Config, error) {
 		return nil, nil
 	}
 
-	tlsClientAuthPolicy := tls.VerifyClientCertIfGiven
+	tlsClientAuthPolicy := tls.NoClientCert
 
 	cert, err := tls.LoadX509KeyPair(opts.TLSCert, opts.TLSKey)
 	if err != nil {
@@ -745,8 +758,6 @@ func buildTLSConfig(opts *Options) (*tls.Config, error) {
 		tlsClientAuthPolicy = tls.RequireAnyClientCert
 	case "require-verify":
 		tlsClientAuthPolicy = tls.RequireAndVerifyClientCert
-	default:
-		tlsClientAuthPolicy = tls.NoClientCert
 	}
 
 	tlsConfig = &tls.Config{

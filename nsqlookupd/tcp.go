@@ -23,7 +23,7 @@ func (p *tcpServer) Handle(conn net.Conn) {
 	_, err := io.ReadFull(conn, buf)
 	if err != nil {
 		p.nsqlookupd.logf(LOG_ERROR, "failed to read protocol version - %s", err)
-		conn.Close()
+		_ = conn.Close()
 		return
 	}
 	protocolMagic := string(buf)
@@ -36,8 +36,12 @@ func (p *tcpServer) Handle(conn net.Conn) {
 	case "  V1":
 		prot = &LookupProtocolV1{nsqlookupd: p.nsqlookupd}
 	default:
-		protocol.SendResponse(conn, []byte("E_BAD_PROTOCOL"))
-		conn.Close()
+		if _, err := protocol.SendResponse(conn, []byte("E_BAD_PROTOCOL")); err != nil {
+			p.nsqlookupd.logf(LOG_ERROR, "failed to send bad protocol response to client(%s) - %s", conn.RemoteAddr(), err)
+		}
+		if err := conn.Close(); err != nil {
+			p.nsqlookupd.logf(LOG_ERROR, "failed to close client(%s) connection - %s", conn.RemoteAddr(), err)
+		}
 		p.nsqlookupd.logf(LOG_ERROR, "client(%s) bad protocol magic '%s'",
 			conn.RemoteAddr(), protocolMagic)
 		return
@@ -52,12 +56,16 @@ func (p *tcpServer) Handle(conn net.Conn) {
 	}
 
 	p.conns.Delete(conn.RemoteAddr())
-	client.Close()
+	if err := client.Close(); err != nil {
+		p.nsqlookupd.logf(LOG_ERROR, "failed to close client(%s) - %s", conn.RemoteAddr(), err)
+	}
 }
 
 func (p *tcpServer) Close() {
 	p.conns.Range(func(k, v interface{}) bool {
-		v.(protocol.Client).Close()
+		if err := v.(protocol.Client).Close(); err != nil {
+			p.nsqlookupd.logf(LOG_ERROR, "failed to close client(%s) - %s", k, err)
+		}
 		return true
 	})
 }

@@ -129,8 +129,13 @@ func (p *PostPublisher) Publish(addr string, msg []byte) error {
 	if err != nil {
 		return err
 	}
-	io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
+	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+		_ = resp.Body.Close()
+		return err
+	}
+	if err := resp.Body.Close(); err != nil {
+		return err
+	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("got status code %d", resp.StatusCode)
@@ -146,8 +151,13 @@ func (p *GetPublisher) Publish(addr string, msg []byte) error {
 	if err != nil {
 		return err
 	}
-	io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
+	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+		_ = resp.Body.Close()
+		return err
+	}
+	if err := resp.Body.Close(); err != nil {
+		return err
+	}
 
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("got status code %d", resp.StatusCode)
@@ -162,7 +172,7 @@ func main() {
 
 	cfg := nsq.NewConfig()
 
-	flag.Var(&nsq.ConfigFlag{cfg}, "consumer-opt", "option to passthrough to nsq.Consumer (may be given multiple times, http://godoc.org/github.com/nsqio/go-nsq#Config)")
+	flag.Var(&nsq.ConfigFlag{Config: cfg}, "consumer-opt", "option to passthrough to nsq.Consumer (may be given multiple times, http://godoc.org/github.com/nsqio/go-nsq#Config)")
 	flag.Parse()
 
 	httpclient = &http.Client{Transport: http_api.NewDeadlineTransport(*httpConnectTimeout, *httpRequestTimeout), Timeout: *httpRequestTimeout}

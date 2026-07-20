@@ -188,18 +188,26 @@ func (c *Channel) exit(deleted bool) error {
 	// this forceably closes client connections
 	c.RLock()
 	for _, client := range c.clients {
-		client.Close()
+		if err := client.Close(); err != nil {
+			c.nsqd.logf(LOG_ERROR, "CHANNEL(%s): failed to close client - %s", c.name, err)
+		}
 	}
 	c.RUnlock()
 
 	if deleted {
 		// empty the queue (deletes the backend files, too)
-		c.Empty()
+		err := c.Empty()
+		if err != nil {
+			return err
+		}
 		return c.backend.Delete()
 	}
 
 	// write anything leftover to disk
-	c.flush()
+	err := c.flush()
+	if err != nil {
+		return err
+	}
 	return c.backend.Close()
 }
 
@@ -381,7 +389,9 @@ func (c *Channel) put(m *Message) error {
 
 func (c *Channel) PutMessageDeferred(msg *Message, timeout time.Duration) {
 	atomic.AddUint64(&c.messageCount, 1)
-	c.StartDeferredTimeout(msg, timeout)
+	if err := c.StartDeferredTimeout(msg, timeout); err != nil {
+		c.nsqd.logf(LOG_ERROR, "CHANNEL(%s): failed to defer message - %s", c.name, err)
+	}
 }
 
 // TouchMessage resets the timeout for an in-flight message
@@ -634,7 +644,11 @@ func (c *Channel) processDeferredQueue(t int64) bool {
 		if err != nil {
 			goto exit
 		}
-		c.put(msg)
+		err = c.put(msg)
+		if err != nil {
+			c.nsqd.logf(LOG_ERROR, "CHANNEL(%s): failed to requeue deferred message - %s", c.name, err)
+			goto exit
+		}
 	}
 
 exit:
@@ -671,7 +685,11 @@ func (c *Channel) processInFlightQueue(t int64) bool {
 		if ok {
 			client.TimedOutMessage()
 		}
-		c.put(msg)
+		err = c.put(msg)
+		if err != nil {
+			c.nsqd.logf(LOG_ERROR, "CHANNEL(%s): failed to requeue in-flight message - %s", c.name, err)
+			goto exit
+		}
 	}
 
 exit:

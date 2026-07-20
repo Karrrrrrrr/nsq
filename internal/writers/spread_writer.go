@@ -40,7 +40,9 @@ func (s *SpreadWriter) Flush() {
 	sleep := s.interval / time.Duration(len(s.buf))
 	ticker := time.NewTicker(sleep)
 	for _, b := range s.buf {
-		s.w.Write(b)
+		if _, err := s.w.Write(b); err != nil {
+			break
+		}
 		select {
 		case <-ticker.C:
 		case <-s.exitCh: // skip sleeps finish writes

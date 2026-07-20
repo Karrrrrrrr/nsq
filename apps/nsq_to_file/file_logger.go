@@ -207,7 +207,7 @@ func (f *FileLogger) Close() {
 
 		for i := f.rev + 1; ; i++ {
 			f.logf(lg.WARN, "[%s/%s] destination file already exists: %s", f.topic, f.opts.Channel, dst)
-			dst := strings.Replace(dstTmpl, "<REV>", fmt.Sprintf("-%06d", i), -1)
+			dst := strings.ReplaceAll(dstTmpl, "<REV>", fmt.Sprintf("-%06d", i))
 			err := exclusiveRename(src, dst)
 			if err != nil {
 				if os.IsExist(err) {
@@ -251,7 +251,7 @@ func (f *FileLogger) Sync() error {
 func (f *FileLogger) currentFilename() string {
 	t := time.Now()
 	datetime := strftime(f.opts.DatetimeFormat, t)
-	return strings.Replace(f.filenameFormat, "<DATETIME>", datetime, -1)
+	return strings.ReplaceAll(f.filenameFormat, "<DATETIME>", datetime)
 }
 
 func (f *FileLogger) needsRotation() bool {
@@ -302,7 +302,7 @@ func (f *FileLogger) updateFile() {
 
 	var fi os.FileInfo
 	for ; ; f.rev++ {
-		absFilename := strings.Replace(fullPath, "<REV>", fmt.Sprintf("-%06d", f.rev), -1)
+		absFilename := strings.ReplaceAll(fullPath, "<REV>", fmt.Sprintf("-%06d", f.rev))
 
 		// If we're using a working directory for in-progress files,
 		// proactively check for duplicate file names in the output dir to
@@ -397,8 +397,8 @@ func computeFilenameFormat(opts *Options, topic string) (string, error) {
 
 	identifier := shortHostname
 	if len(opts.HostIdentifier) != 0 {
-		identifier = strings.Replace(opts.HostIdentifier, "<SHORT_HOST>", shortHostname, -1)
-		identifier = strings.Replace(identifier, "<HOSTNAME>", hostname, -1)
+		identifier = strings.ReplaceAll(opts.HostIdentifier, "<SHORT_HOST>", shortHostname)
+		identifier = strings.ReplaceAll(identifier, "<HOSTNAME>", hostname)
 	}
 
 	cff := opts.FilenameFormat
@@ -408,11 +408,11 @@ func computeFilenameFormat(opts *Options, topic string) (string, error) {
 		}
 	} else {
 		// remove <REV> as we don't need it
-		cff = strings.Replace(cff, "<REV>", "", -1)
+		cff = strings.ReplaceAll(cff, "<REV>", "")
 	}
-	cff = strings.Replace(cff, "<TOPIC>", topic, -1)
-	cff = strings.Replace(cff, "<HOST>", identifier, -1)
-	cff = strings.Replace(cff, "<PID>", fmt.Sprintf("%d", os.Getpid()), -1)
+	cff = strings.ReplaceAll(cff, "<TOPIC>", topic)
+	cff = strings.ReplaceAll(cff, "<HOST>", identifier)
+	cff = strings.ReplaceAll(cff, "<PID>", fmt.Sprintf("%d", os.Getpid()))
 	if opts.GZIP && !strings.HasSuffix(cff, ".gz") {
 		cff = cff + ".gz"
 	}

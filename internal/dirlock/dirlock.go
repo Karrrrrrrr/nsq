@@ -34,6 +34,10 @@ func (l *DirLock) Lock() error {
 }
 
 func (l *DirLock) Unlock() error {
-	defer l.f.Close()
-	return syscall.Flock(int(l.f.Fd()), syscall.LOCK_UN)
+	err := syscall.Flock(int(l.f.Fd()), syscall.LOCK_UN)
+	closeErr := l.f.Close()
+	if err != nil {
+		return err
+	}
+	return closeErr
 }

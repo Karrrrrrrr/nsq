@@ -25,7 +25,7 @@ func connectCallback(n *NSQD, hostname string) func(*lookupPeer) {
 
 		cmd, err := nsq.Identify(ci)
 		if err != nil {
-			lp.Close()
+			_ = lp.Close()
 			return
 		}
 
@@ -35,14 +35,14 @@ func connectCallback(n *NSQD, hostname string) func(*lookupPeer) {
 			return
 		} else if bytes.Equal(resp, []byte("E_INVALID")) {
 			n.logf(LOG_INFO, "LOOKUPD(%s): lookupd returned %s", lp, resp)
-			lp.Close()
+			_ = lp.Close()
 			return
 		}
 
 		err = json.Unmarshal(resp, &lp.Info)
 		if err != nil {
 			n.logf(LOG_ERROR, "LOOKUPD(%s): parsing response - %s", lp, resp)
-			lp.Close()
+			_ = lp.Close()
 			return
 		}
 		n.logf(LOG_INFO, "LOOKUPD(%s): peer info %+v", lp, lp.Info)
@@ -100,7 +100,11 @@ func (n *NSQD) lookupLoop() {
 				n.logf(LOG_INFO, "LOOKUP(%s): adding peer", host)
 				lookupPeer := newLookupPeer(host, n.getOpts().MaxBodySize, n.logf,
 					connectCallback(n, hostname))
-				lookupPeer.Command(nil) // start the connection
+				if _, err := lookupPeer.Command(nil); err != nil { // start the connection
+					n.logf(LOG_ERROR, "LOOKUP(%s): failed to start connection - %s", host, err)
+					_ = lookupPeer.Close()
+					continue
+				}
 				lookupPeers = append(lookupPeers, lookupPeer)
 				lookupAddrs = append(lookupAddrs, host)
 			}
@@ -161,7 +165,7 @@ func (n *NSQD) lookupLoop() {
 					continue
 				}
 				n.logf(LOG_INFO, "LOOKUP(%s): removing peer", lp)
-				lp.Close()
+				_ = lp.Close()
 			}
 			lookupPeers = tmpPeers
 			lookupAddrs = tmpAddrs

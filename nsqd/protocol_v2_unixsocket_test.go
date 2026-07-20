@@ -1,5 +1,7 @@
 package nsqd
 
+//nolint:errcheck
+
 import (
 	"bufio"
 	"bytes"
@@ -56,7 +58,11 @@ func mustUnixSocketConnectNSQD(addr net.Addr) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	conn.Write(nsq.MagicV2)
+	_, err = conn.Write(nsq.MagicV2)
+	if err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
 	return conn, nil
 }
 
@@ -66,17 +72,18 @@ func TestUnixSocketBasicV2(t *testing.T) {
 	opts.Logger = test.NewTestLogger(t)
 	opts.ClientTimeout = 60 * time.Second
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_v2" + strconv.Itoa(int(time.Now().Unix()))
 	topic := nsqd.GetTopic(topicName)
 	msg := NewMessage(topic.GenerateID(), []byte("test body"))
-	topic.PutMessage(msg)
+	err := topic.PutMessage(msg)
+	test.Nil(t, err)
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn, nil, frameTypeResponse)
 	sub(t, conn, topicName, "ch")
@@ -101,7 +108,7 @@ func TestUnixSocketMultipleConsumerV2(t *testing.T) {
 	opts.Logger = test.NewTestLogger(t)
 	opts.ClientTimeout = 60 * time.Second
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_multiple_v2" + strconv.Itoa(int(time.Now().Unix()))
@@ -109,12 +116,13 @@ func TestUnixSocketMultipleConsumerV2(t *testing.T) {
 	msg := NewMessage(topic.GenerateID(), []byte("test body"))
 	topic.GetChannel("ch1")
 	topic.GetChannel("ch2")
-	topic.PutMessage(msg)
+	err := topic.PutMessage(msg)
+	test.Nil(t, err)
 
 	for _, i := range []string{"1", "2"} {
 		conn, err := mustUnixSocketConnectNSQD(addr)
 		test.Nil(t, err)
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		identify(t, conn, nil, frameTypeResponse)
 		sub(t, conn, topicName, "ch"+i)
@@ -151,12 +159,12 @@ func TestUnixSocketClientTimeout(t *testing.T) {
 	opts.ClientTimeout = 150 * time.Millisecond
 	opts.LogLevel = LOG_DEBUG
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn, nil, frameTypeResponse)
 	sub(t, conn, topicName, "ch")
@@ -187,12 +195,12 @@ func TestUnixSocketClientHeartbeat(t *testing.T) {
 	opts.Logger = test.NewTestLogger(t)
 	opts.ClientTimeout = 200 * time.Millisecond
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn, nil, frameTypeResponse)
 	sub(t, conn, topicName, "ch")
@@ -224,12 +232,12 @@ func TestUnixSocketClientHeartbeatDisableSUB(t *testing.T) {
 	opts.ClientTimeout = 200 * time.Millisecond
 	opts.LogLevel = LOG_DEBUG
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn, map[string]interface{}{
 		"heartbeat_interval": -1,
@@ -242,12 +250,12 @@ func TestUnixSocketClientHeartbeatDisable(t *testing.T) {
 	opts.Logger = test.NewTestLogger(t)
 	opts.ClientTimeout = 100 * time.Millisecond
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn, map[string]interface{}{
 		"heartbeat_interval": -1,
@@ -264,12 +272,12 @@ func TestUnixSocketMaxHeartbeatIntervalValid(t *testing.T) {
 	opts.Logger = test.NewTestLogger(t)
 	opts.MaxHeartbeatInterval = 300 * time.Second
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	hbi := int(opts.MaxHeartbeatInterval / time.Millisecond)
 	identify(t, conn, map[string]interface{}{
@@ -282,12 +290,12 @@ func TestUnixSocketMaxHeartbeatIntervalInvalid(t *testing.T) {
 	opts.Logger = test.NewTestLogger(t)
 	opts.MaxHeartbeatInterval = 300 * time.Second
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	hbi := int(opts.MaxHeartbeatInterval/time.Millisecond + 1)
 	data := identify(t, conn, map[string]interface{}{
@@ -302,12 +310,12 @@ func TestUnixSocketPausing(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn, nil, frameTypeResponse)
 	sub(t, conn, topicName, "ch")
@@ -318,7 +326,8 @@ func TestUnixSocketPausing(t *testing.T) {
 	topic := nsqd.GetTopic(topicName)
 	msg := NewMessage(topic.GenerateID(), []byte("test body"))
 	channel := topic.GetChannel("ch")
-	topic.PutMessage(msg)
+	err = topic.PutMessage(msg)
+	test.Nil(t, err)
 
 	// receive the first message via the client, finish it, and send new RDY
 	resp, _ := nsq.ReadResponse(conn)
@@ -336,13 +345,15 @@ func TestUnixSocketPausing(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// pause the channel... the client shouldn't receive any more messages
-	channel.Pause()
+	err = channel.Pause()
+	test.Nil(t, err)
 
 	// sleep to allow the paused state to take effect
 	time.Sleep(50 * time.Millisecond)
 
 	msg = NewMessage(topic.GenerateID(), []byte("test body2"))
-	topic.PutMessage(msg)
+	err = topic.PutMessage(msg)
+	test.Nil(t, err)
 
 	// allow the client to possibly get a message, the test would hang indefinitely
 	// if pausing was not working
@@ -351,10 +362,12 @@ func TestUnixSocketPausing(t *testing.T) {
 	test.Equal(t, []byte("test body2"), msg.Body)
 
 	// unpause the channel... the client should now be pushed a message
-	channel.UnPause()
+	err = channel.UnPause()
+	test.Nil(t, err)
 
 	msg = NewMessage(topic.GenerateID(), []byte("test body3"))
-	topic.PutMessage(msg)
+	err = topic.PutMessage(msg)
+	test.Nil(t, err)
 
 	resp, _ = nsq.ReadResponse(conn)
 	_, data, _ = nsq.UnpackResponse(resp)
@@ -366,12 +379,12 @@ func TestUnixSocketEmptyCommand(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	_, err = conn.Write([]byte("\n\n"))
 	test.Nil(t, err)
@@ -386,12 +399,12 @@ func TestUnixSocketSizeLimits(t *testing.T) {
 	opts.MaxMsgSize = 100
 	opts.MaxBodySize = 1000
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	topicName := "test_limits_v2" + strconv.Itoa(int(time.Now().Unix()))
 
@@ -399,7 +412,8 @@ func TestUnixSocketSizeLimits(t *testing.T) {
 	sub(t, conn, topicName, "ch")
 
 	// PUB that's valid
-	nsq.Publish(topicName, make([]byte, 95)).WriteTo(conn)
+	_, err = nsq.Publish(topicName, make([]byte, 95)).WriteTo(conn)
+	test.Nil(t, err)
 	resp, _ := nsq.ReadResponse(conn)
 	frameType, data, _ := nsq.UnpackResponse(resp)
 	t.Logf("frameType: %d, data: %s", frameType, data)
@@ -407,7 +421,8 @@ func TestUnixSocketSizeLimits(t *testing.T) {
 	test.Equal(t, []byte("OK"), data)
 
 	// PUB that's invalid (too big)
-	nsq.Publish(topicName, make([]byte, 105)).WriteTo(conn)
+	_, err = nsq.Publish(topicName, make([]byte, 105)).WriteTo(conn)
+	test.Nil(t, err)
 	resp, _ = nsq.ReadResponse(conn)
 	frameType, data, _ = nsq.UnpackResponse(resp)
 	t.Logf("frameType: %d, data: %s", frameType, data)
@@ -417,10 +432,11 @@ func TestUnixSocketSizeLimits(t *testing.T) {
 	// need to reconnect
 	conn, err = mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// PUB thats empty
-	nsq.Publish(topicName, []byte{}).WriteTo(conn)
+	_, err = nsq.Publish(topicName, []byte{}).WriteTo(conn)
+	test.Nil(t, err)
 	resp, _ = nsq.ReadResponse(conn)
 	frameType, data, _ = nsq.UnpackResponse(resp)
 	t.Logf("frameType: %d, data: %s", frameType, data)
@@ -430,7 +446,7 @@ func TestUnixSocketSizeLimits(t *testing.T) {
 	// need to reconnect
 	conn, err = mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// MPUB body that's valid
 	mpub := make([][]byte, 5)
@@ -438,7 +454,8 @@ func TestUnixSocketSizeLimits(t *testing.T) {
 		mpub[i] = make([]byte, 100)
 	}
 	cmd, _ := nsq.MultiPublish(topicName, mpub)
-	cmd.WriteTo(conn)
+	_, err = cmd.WriteTo(conn)
+	test.Nil(t, err)
 	resp, _ = nsq.ReadResponse(conn)
 	frameType, data, _ = nsq.UnpackResponse(resp)
 	t.Logf("frameType: %d, data: %s", frameType, data)
@@ -451,7 +468,8 @@ func TestUnixSocketSizeLimits(t *testing.T) {
 		mpub[i] = make([]byte, 100)
 	}
 	cmd, _ = nsq.MultiPublish(topicName, mpub)
-	cmd.WriteTo(conn)
+	_, err = cmd.WriteTo(conn)
+	test.Nil(t, err)
 	resp, _ = nsq.ReadResponse(conn)
 	frameType, data, _ = nsq.UnpackResponse(resp)
 	t.Logf("frameType: %d, data: %s", frameType, data)
@@ -461,7 +479,7 @@ func TestUnixSocketSizeLimits(t *testing.T) {
 	// need to reconnect
 	conn, err = mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// MPUB that's invalid (one message empty)
 	mpub = make([][]byte, 5)
@@ -470,7 +488,8 @@ func TestUnixSocketSizeLimits(t *testing.T) {
 	}
 	mpub = append(mpub, []byte{})
 	cmd, _ = nsq.MultiPublish(topicName, mpub)
-	cmd.WriteTo(conn)
+	_, err = cmd.WriteTo(conn)
+	test.Nil(t, err)
 	resp, _ = nsq.ReadResponse(conn)
 	frameType, data, _ = nsq.UnpackResponse(resp)
 	t.Logf("frameType: %d, data: %s", frameType, data)
@@ -480,7 +499,7 @@ func TestUnixSocketSizeLimits(t *testing.T) {
 	// need to reconnect
 	conn, err = mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// MPUB body that's invalid (one of the messages is too big)
 	mpub = make([][]byte, 5)
@@ -488,7 +507,8 @@ func TestUnixSocketSizeLimits(t *testing.T) {
 		mpub[i] = make([]byte, 101)
 	}
 	cmd, _ = nsq.MultiPublish(topicName, mpub)
-	cmd.WriteTo(conn)
+	_, err = cmd.WriteTo(conn)
+	test.Nil(t, err)
 	resp, _ = nsq.ReadResponse(conn)
 	frameType, data, _ = nsq.UnpackResponse(resp)
 	t.Logf("frameType: %d, data: %s", frameType, data)
@@ -501,12 +521,12 @@ func TestUnixSocketDPUB(t *testing.T) {
 	opts.Logger = test.NewTestLogger(t)
 	opts.LogLevel = LOG_DEBUG
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	topicName := "test_dpub_v2" + strconv.Itoa(int(time.Now().Unix()))
 
@@ -514,7 +534,8 @@ func TestUnixSocketDPUB(t *testing.T) {
 	sub(t, conn, topicName, "ch")
 
 	// valid
-	nsq.DeferredPublish(topicName, time.Second, make([]byte, 100)).WriteTo(conn)
+	_, err = nsq.DeferredPublish(topicName, time.Second, make([]byte, 100)).WriteTo(conn)
+	test.Nil(t, err)
 	resp, _ := nsq.ReadResponse(conn)
 	frameType, data, _ := nsq.UnpackResponse(resp)
 	t.Logf("frameType: %d, data: %s", frameType, data)
@@ -531,7 +552,8 @@ func TestUnixSocketDPUB(t *testing.T) {
 	test.Equal(t, 1, int(atomic.LoadUint64(&ch.messageCount)))
 
 	// duration out of range
-	nsq.DeferredPublish(topicName, opts.MaxDeferTimeout+100*time.Millisecond, make([]byte, 100)).WriteTo(conn)
+	_, err = nsq.DeferredPublish(topicName, opts.MaxDeferTimeout+100*time.Millisecond, make([]byte, 100)).WriteTo(conn)
+	test.Nil(t, err)
 	resp, _ = nsq.ReadResponse(conn)
 	frameType, data, _ = nsq.UnpackResponse(resp)
 	t.Logf("frameType: %d, data: %s", frameType, data)
@@ -545,14 +567,14 @@ func TestUnixSocketTouch(t *testing.T) {
 	opts.LogLevel = LOG_DEBUG
 	opts.MsgTimeout = 150 * time.Millisecond
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_touch" + strconv.Itoa(int(time.Now().Unix()))
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn, nil, frameTypeResponse)
 	sub(t, conn, topicName, "ch")
@@ -560,7 +582,8 @@ func TestUnixSocketTouch(t *testing.T) {
 	topic := nsqd.GetTopic(topicName)
 	channel := topic.GetChannel("ch")
 	msg := NewMessage(topic.GenerateID(), []byte("test body"))
-	topic.PutMessage(msg)
+	err = topic.PutMessage(msg)
+	test.Nil(t, err)
 
 	_, err = nsq.Ready(1).WriteTo(conn)
 	test.Nil(t, err)
@@ -591,18 +614,19 @@ func TestUnixSocketMaxRdyCount(t *testing.T) {
 	opts.LogLevel = LOG_DEBUG
 	opts.MaxRdyCount = 50
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_max_rdy_count" + strconv.Itoa(int(time.Now().Unix()))
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	topic := nsqd.GetTopic(topicName)
 	msg := NewMessage(topic.GenerateID(), []byte("test body"))
-	topic.PutMessage(msg)
+	err = topic.PutMessage(msg)
+	test.Nil(t, err)
 
 	data := identify(t, conn, nil, frameTypeResponse)
 	r := struct {
@@ -637,12 +661,12 @@ func TestUnixSocketFatalError(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	_, err = conn.Write([]byte("ASDF\n"))
 	test.Nil(t, err)
@@ -664,21 +688,22 @@ func TestUnixSocketOutputBuffering(t *testing.T) {
 	opts.MaxOutputBufferSize = 512 * 1024
 	opts.MaxOutputBufferTimeout = time.Second
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_output_buffering" + strconv.Itoa(int(time.Now().Unix()))
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	outputBufferSize := 256 * 1024
 	outputBufferTimeout := 500
 
 	topic := nsqd.GetTopic(topicName)
 	msg := NewMessage(topic.GenerateID(), make([]byte, outputBufferSize-1024))
-	topic.PutMessage(msg)
+	err = topic.PutMessage(msg)
+	test.Nil(t, err)
 
 	start := time.Now()
 	data := identify(t, conn, map[string]interface{}{
@@ -686,7 +711,8 @@ func TestUnixSocketOutputBuffering(t *testing.T) {
 		"output_buffer_timeout": outputBufferTimeout,
 	}, frameTypeResponse)
 	var decoded map[string]interface{}
-	json.Unmarshal(data, &decoded)
+	err = json.Unmarshal(data, &decoded)
+	test.Nil(t, err)
 	v, ok := decoded["output_buffer_size"]
 	test.Equal(t, true, ok)
 	test.Equal(t, outputBufferSize, int(v.(float64)))
@@ -716,12 +742,12 @@ func TestUnixSocketOutputBufferingValidity(t *testing.T) {
 	opts.MaxOutputBufferSize = 512 * 1024
 	opts.MaxOutputBufferTimeout = time.Second
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn, map[string]interface{}{
 		"output_buffer_size":    512 * 1024,
@@ -743,7 +769,7 @@ func TestUnixSocketOutputBufferingValidity(t *testing.T) {
 
 	conn, err = mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	data = identify(t, conn, map[string]interface{}{
 		"output_buffer_size":    0,
@@ -759,12 +785,12 @@ func TestUnixSocketTLS(t *testing.T) {
 	opts.TLSCert = "./test/certs/server.pem"
 	opts.TLSKey = "./test/certs/server.key"
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	data := identify(t, conn, map[string]interface{}{
 		"tls_v1": true,
@@ -800,20 +826,20 @@ func TestUnixSocketTLSRequired(t *testing.T) {
 	opts.TLSRequired = TLSRequiredExceptHTTP
 
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_tls_required" + strconv.Itoa(int(time.Now().Unix()))
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	subFail(t, conn, topicName, "ch")
 
 	conn, err = mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	data := identify(t, conn, map[string]interface{}{
 		"tls_v1": true,
@@ -849,13 +875,13 @@ func TestUnixSocketTLSAuthRequire(t *testing.T) {
 	opts.TLSClientAuthPolicy = "require"
 
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	// No Certs
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	data := identify(t, conn, map[string]interface{}{
 		"tls_v1": true,
@@ -876,7 +902,7 @@ func TestUnixSocketTLSAuthRequire(t *testing.T) {
 	// With Unsigned Cert
 	conn, err = mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	data = identify(t, conn, map[string]interface{}{
 		"tls_v1": true,
@@ -916,13 +942,13 @@ func TestUnixSocketTLSAuthRequireVerify(t *testing.T) {
 	opts.TLSClientAuthPolicy = "require-verify"
 
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	// with no cert
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	data := identify(t, conn, map[string]interface{}{
 		"tls_v1": true,
@@ -943,7 +969,7 @@ func TestUnixSocketTLSAuthRequireVerify(t *testing.T) {
 	// with invalid cert
 	conn, err = mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	data = identify(t, conn, map[string]interface{}{
 		"tls_v1": true,
@@ -967,7 +993,7 @@ func TestUnixSocketTLSAuthRequireVerify(t *testing.T) {
 	// with valid cert
 	conn, err = mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	data = identify(t, conn, map[string]interface{}{
 		"tls_v1": true,
@@ -1001,12 +1027,12 @@ func TestUnixSocketDeflate(t *testing.T) {
 	opts.LogLevel = LOG_DEBUG
 	opts.DeflateEnabled = true
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	data := identify(t, conn, map[string]interface{}{
 		"deflate": true,
@@ -1032,12 +1058,12 @@ func TestUnixSocketSnappy(t *testing.T) {
 	opts.LogLevel = LOG_DEBUG
 	opts.SnappyEnabled = true
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	data := identify(t, conn, map[string]interface{}{
 		"snappy": true,
@@ -1057,8 +1083,7 @@ func TestUnixSocketSnappy(t *testing.T) {
 	test.Equal(t, []byte("OK"), data)
 
 	msgBody := make([]byte, 128000)
-	//lint:ignore SA1019 NewWriter is deprecated by NewBufferedWriter, but we don't want to buffer
-	w := snappy.NewWriter(conn)
+	w := snappy.NewBufferedWriter(conn)
 
 	rw := readWriter{compressConn, w}
 
@@ -1070,7 +1095,7 @@ func TestUnixSocketSnappy(t *testing.T) {
 
 	topic := nsqd.GetTopic(topicName)
 	msg := NewMessage(topic.GenerateID(), msgBody)
-	topic.PutMessage(msg)
+	_ = topic.PutMessage(msg)
 
 	resp, _ = nsq.ReadResponse(compressConn)
 	frameType, data, _ = nsq.UnpackResponse(resp)
@@ -1088,12 +1113,12 @@ func TestUnixSocketTLSDeflate(t *testing.T) {
 	opts.TLSCert = "./test/certs/cert.pem"
 	opts.TLSKey = "./test/certs/key.pem"
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	data := identify(t, conn, map[string]interface{}{
 		"tls_v1":  true,
@@ -1132,8 +1157,6 @@ func TestUnixSocketTLSDeflate(t *testing.T) {
 }
 
 func TestUnixSocketSampling(t *testing.T) {
-	rand.Seed(time.Now().UTC().UnixNano())
-
 	num := 10000
 	sampleRate := 42
 	slack := 5
@@ -1143,12 +1166,12 @@ func TestUnixSocketSampling(t *testing.T) {
 	opts.LogLevel = LOG_DEBUG
 	opts.MaxRdyCount = int64(num)
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	data := identify(t, conn, map[string]interface{}{
 		"sample_rate": int32(sampleRate),
@@ -1164,7 +1187,7 @@ func TestUnixSocketSampling(t *testing.T) {
 	topic := nsqd.GetTopic(topicName)
 	for i := 0; i < num; i++ {
 		msg := NewMessage(topic.GenerateID(), []byte("test body"))
-		topic.PutMessage(msg)
+		_ = topic.PutMessage(msg)
 	}
 	channel := topic.GetChannel("ch")
 
@@ -1212,12 +1235,12 @@ func TestUnixSocketTLSSnappy(t *testing.T) {
 	opts.TLSCert = "./test/certs/cert.pem"
 	opts.TLSKey = "./test/certs/key.pem"
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	data := identify(t, conn, map[string]interface{}{
 		"tls_v1": true,
@@ -1261,23 +1284,23 @@ func TestUnixSocketClientMsgTimeout(t *testing.T) {
 	opts.LogLevel = LOG_DEBUG
 	opts.QueueScanRefreshInterval = 100 * time.Millisecond
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_cmsg_timeout" + strconv.Itoa(int(time.Now().Unix()))
 	topic := nsqd.GetTopic(topicName)
 	ch := topic.GetChannel("ch")
 	msg := NewMessage(topic.GenerateID(), make([]byte, 100))
-	topic.PutMessage(msg)
+	_ = topic.PutMessage(msg)
 
 	// without this the race detector thinks there's a write
 	// to msg.Attempts that races with the read in the protocol's messagePump...
 	// it does not reflect a realistically possible condition
-	topic.PutMessage(NewMessage(topic.GenerateID(), make([]byte, 100)))
+	_ = topic.PutMessage(NewMessage(topic.GenerateID(), make([]byte, 100)))
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn, map[string]interface{}{
 		"msg_timeout": 1000,
@@ -1319,12 +1342,12 @@ func TestUnixSocketBadFin(t *testing.T) {
 	opts.Logger = test.NewTestLogger(t)
 	opts.LogLevel = LOG_DEBUG
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn, map[string]interface{}{}, frameTypeResponse)
 	sub(t, conn, "test_fin", "ch")
@@ -1346,14 +1369,14 @@ func TestUnixSocketReqTimeoutRange(t *testing.T) {
 	opts.LogLevel = LOG_DEBUG
 	opts.MaxReqTimeout = 1 * time.Minute
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_req" + strconv.Itoa(int(time.Now().Unix()))
 
 	conn, err := mustUnixSocketConnectNSQD(addr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn, nil, frameTypeResponse)
 	sub(t, conn, topicName, "ch")
@@ -1361,7 +1384,7 @@ func TestUnixSocketReqTimeoutRange(t *testing.T) {
 	topic := nsqd.GetTopic(topicName)
 	channel := topic.GetChannel("ch")
 	msg := NewMessage(topic.GenerateID(), []byte("test body"))
-	topic.PutMessage(msg)
+	_ = topic.PutMessage(msg)
 
 	_, err = nsq.Ready(1).WriteTo(conn)
 	test.Nil(t, err)
@@ -1450,7 +1473,7 @@ func BenchmarkUnixSocketProtocolV2Exec(b *testing.B) {
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		p.Exec(c, params)
+		_, _ = p.Exec(c, params)
 	}
 }
 
@@ -1463,7 +1486,7 @@ func benchmarkUnixSocketProtocolV2PubMultiTopic(b *testing.B, numTopics int) {
 	opts.Logger = test.NewTestLogger(b)
 	opts.MemQueueSize = int64(b.N)
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	msg := make([]byte, size)
 	batch := make([][]byte, batchSize)
 	for i := range batch {
@@ -1549,7 +1572,7 @@ func benchmarkUnixSocketProtocolV2Pub(b *testing.B, size int) {
 	opts.Logger = test.NewTestLogger(b)
 	opts.MemQueueSize = int64(b.N)
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	msg := make([]byte, size)
 	batch := make([][]byte, batchSize)
 	for i := range batch {
@@ -1635,13 +1658,13 @@ func benchmarkUnixSocketProtocolV2Sub(b *testing.B, size int) {
 	opts.Logger = test.NewTestLogger(b)
 	opts.MemQueueSize = int64(b.N)
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	msg := make([]byte, size)
 	topicName := "bench_v2_sub" + strconv.Itoa(b.N) + strconv.Itoa(int(time.Now().Unix()))
 	topic := nsqd.GetTopic(topicName)
 	for i := 0; i < b.N; i++ {
 		msg := NewMessage(topic.GenerateID(), msg)
-		topic.PutMessage(msg)
+		_ = topic.PutMessage(msg)
 	}
 	topic.GetChannel("ch")
 	b.SetBytes(int64(len(msg)))
@@ -1678,8 +1701,14 @@ func subUnixSocketWorker(n int, workers int, addr net.Addr, topicName string, rd
 	rdyCount := int(math.Min(math.Max(float64(n/workers), 1), 2500))
 	rdyChan <- 1
 	<-goChan
-	nsq.Ready(rdyCount).WriteTo(rw)
-	rw.Flush()
+	_, err = nsq.Ready(rdyCount).WriteTo(rw)
+	if err != nil {
+		panic(err.Error())
+	}
+	err = rw.Flush()
+	if err != nil {
+		panic(err.Error())
+	}
 	num := n / workers
 	for i := 0; i < num; i++ {
 		resp, err := nsq.ReadResponse(rw)
@@ -1697,12 +1726,21 @@ func subUnixSocketWorker(n int, workers int, addr net.Addr, topicName string, rd
 		if err != nil {
 			panic(err.Error())
 		}
-		nsq.Finish(nsq.MessageID(msg.ID)).WriteTo(rw)
+		_, err = nsq.Finish(nsq.MessageID(msg.ID)).WriteTo(rw)
+		if err != nil {
+			panic(err.Error())
+		}
 		if (i+1)%rdyCount == 0 || i+1 == num {
 			if i+1 == num {
-				nsq.Ready(0).WriteTo(conn)
+				_, err = nsq.Ready(0).WriteTo(conn)
+				if err != nil {
+					panic(err.Error())
+				}
 			}
-			rw.Flush()
+			err = rw.Flush()
+			if err != nil {
+				panic(err.Error())
+			}
 		}
 	}
 }
@@ -1735,7 +1773,7 @@ func benchmarkUnixSocketProtocolV2MultiSub(b *testing.B, num int) {
 	opts.Logger = test.NewTestLogger(b)
 	opts.MemQueueSize = int64(b.N)
 	addr, _, nsqd := mustUnixSocketStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	msg := make([]byte, 256)
 	b.SetBytes(int64(len(msg) * num))
 
@@ -1747,7 +1785,7 @@ func benchmarkUnixSocketProtocolV2MultiSub(b *testing.B, num int) {
 		topic := nsqd.GetTopic(topicName)
 		for i := 0; i < b.N; i++ {
 			msg := NewMessage(topic.GenerateID(), msg)
-			topic.PutMessage(msg)
+			_ = topic.PutMessage(msg)
 		}
 		topic.GetChannel("ch")
 

@@ -18,22 +18,24 @@ func TestStats(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	tcpAddr, _, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_stats" + strconv.Itoa(int(time.Now().Unix()))
 	topic := nsqd.GetTopic(topicName)
 	msg := NewMessage(topic.GenerateID(), []byte("test body"))
-	topic.PutMessage(msg)
+	err := topic.PutMessage(msg)
+	test.Nil(t, err)
 
 	accompanyTopicName := "accompany_test_stats" + strconv.Itoa(int(time.Now().Unix()))
 	accompanyTopic := nsqd.GetTopic(accompanyTopicName)
 	msg = NewMessage(accompanyTopic.GenerateID(), []byte("accompany test body"))
-	accompanyTopic.PutMessage(msg)
+	err = accompanyTopic.PutMessage(msg)
+	test.Nil(t, err)
 
 	conn, err := mustConnectNSQD(tcpAddr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn, nil, frameTypeResponse)
 	sub(t, conn, topicName, "ch")
@@ -73,12 +75,12 @@ func TestClientAttributes(t *testing.T) {
 	opts.LogLevel = LOG_DEBUG
 	opts.SnappyEnabled = true
 	tcpAddr, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustConnectNSQD(tcpAddr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	data := identify(t, conn, map[string]interface{}{
 		"snappy":     true,
@@ -93,8 +95,7 @@ func TestClientAttributes(t *testing.T) {
 	test.Equal(t, true, resp.Snappy)
 
 	r := snappy.NewReader(conn)
-	//lint:ignore SA1019 NewWriter is deprecated by NewBufferedWriter, but we don't want to buffer
-	w := snappy.NewWriter(conn)
+	w := snappy.NewBufferedWriter(conn)
 	readValidate(t, r, frameTypeResponse, "OK")
 
 	topicName := "test_client_attributes" + strconv.Itoa(int(time.Now().Unix()))
@@ -123,7 +124,7 @@ func TestStatsChannelLocking(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, _, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_channel_empty" + strconv.Itoa(int(time.Now().Unix()))
@@ -136,8 +137,10 @@ func TestStatsChannelLocking(t *testing.T) {
 	go func() {
 		for i := 0; i < 25; i++ {
 			msg := NewMessage(topic.GenerateID(), []byte("test"))
-			topic.PutMessage(msg)
-			channel.StartInFlightTimeout(msg, 0, opts.MsgTimeout)
+			err := topic.PutMessage(msg)
+			test.Nil(t, err)
+			err = channel.StartInFlightTimeout(msg, 0, opts.MsgTimeout)
+			test.Nil(t, err)
 		}
 		wg.Done()
 	}()

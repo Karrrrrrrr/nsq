@@ -134,7 +134,7 @@ func bootstrapNSQClusterWithAuth(t *testing.T, withAuth bool) (string, []*nsqd.N
 
 func TestPing(t *testing.T) {
 	dataPath, nsqds, nsqlookupds, nsqadmin1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupds[0].Exit()
 	defer nsqadmin1.Exit()
@@ -146,14 +146,15 @@ func TestPing(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	err = resp.Body.Close()
+	test.Nil(t, err)
 
 	test.Equal(t, []byte("OK"), body)
 }
 
 func TestHTTPTopicsGET(t *testing.T) {
 	dataPath, nsqds, nsqlookupds, nsqadmin1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupds[0].Exit()
 	defer nsqadmin1.Exit()
@@ -169,7 +170,8 @@ func TestHTTPTopicsGET(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	err = resp.Body.Close()
+	test.Nil(t, err)
 
 	t.Logf("%s", body)
 	tr := TopicsDoc{}
@@ -181,7 +183,7 @@ func TestHTTPTopicsGET(t *testing.T) {
 
 func TestHTTPTopicGET(t *testing.T) {
 	dataPath, nsqds, nsqlookupds, nsqadmin1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupds[0].Exit()
 	defer nsqadmin1.Exit()
@@ -197,7 +199,8 @@ func TestHTTPTopicGET(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	err = resp.Body.Close()
+	test.Nil(t, err)
 
 	t.Logf("%s", body)
 	ts := TopicStatsDoc{}
@@ -213,7 +216,7 @@ func TestHTTPTopicGET(t *testing.T) {
 
 func TestHTTPNodesGET(t *testing.T) {
 	dataPath, nsqds, nsqlookupds, nsqadmin1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupds[0].Exit()
 	defer nsqadmin1.Exit()
@@ -227,7 +230,8 @@ func TestHTTPNodesGET(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	err = resp.Body.Close()
+	test.Nil(t, err)
 
 	hostname, _ := os.Hostname()
 
@@ -247,7 +251,7 @@ func TestHTTPNodesGET(t *testing.T) {
 
 func TestHTTPChannelGET(t *testing.T) {
 	dataPath, nsqds, nsqlookupds, nsqadmin1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupds[0].Exit()
 	defer nsqadmin1.Exit()
@@ -264,7 +268,7 @@ func TestHTTPChannelGET(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	cs := ChannelStatsDoc{}
@@ -286,7 +290,7 @@ func TestHTTPChannelGET(t *testing.T) {
 
 func TestHTTPNodesSingleGET(t *testing.T) {
 	dataPath, nsqds, nsqlookupds, nsqadmin1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupds[0].Exit()
 	defer nsqadmin1.Exit()
@@ -304,7 +308,7 @@ func TestHTTPNodesSingleGET(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	ns := NodeStatsDoc{}
@@ -323,7 +327,7 @@ func TestHTTPNodesSingleGET(t *testing.T) {
 
 func TestHTTPCreateTopicPOST(t *testing.T) {
 	dataPath, nsqds, nsqlookupds, nsqadmin1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupds[0].Exit()
 	defer nsqadmin1.Exit()
@@ -341,12 +345,12 @@ func TestHTTPCreateTopicPOST(t *testing.T) {
 	resp, err := client.Do(req)
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 }
 
 func TestHTTPCreateTopicChannelPOST(t *testing.T) {
 	dataPath, nsqds, nsqlookupds, nsqadmin1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupds[0].Exit()
 	defer nsqadmin1.Exit()
@@ -365,12 +369,12 @@ func TestHTTPCreateTopicChannelPOST(t *testing.T) {
 	resp, err := client.Do(req)
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 }
 
 func TestHTTPTombstoneTopicNodePOST(t *testing.T) {
 	dataPath, nsqds, nsqlookupds, nsqadmin1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupds[0].Exit()
 	defer nsqadmin1.Exit()
@@ -388,12 +392,12 @@ func TestHTTPTombstoneTopicNodePOST(t *testing.T) {
 	resp, err := client.Do(req)
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 }
 
 func TestHTTPDeleteTopicPOST(t *testing.T) {
 	dataPath, nsqds, nsqlookupds, nsqadmin1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupds[0].Exit()
 	defer nsqadmin1.Exit()
@@ -408,12 +412,12 @@ func TestHTTPDeleteTopicPOST(t *testing.T) {
 	resp, err := client.Do(req)
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 }
 
 func TestHTTPDeleteChannelPOST(t *testing.T) {
 	dataPath, nsqds, nsqlookupds, nsqadmin1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupds[0].Exit()
 	defer nsqadmin1.Exit()
@@ -429,12 +433,12 @@ func TestHTTPDeleteChannelPOST(t *testing.T) {
 	resp, err := client.Do(req)
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 }
 
 func TestHTTPPauseTopicPOST(t *testing.T) {
 	dataPath, nsqds, nsqlookupds, nsqadmin1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupds[0].Exit()
 	defer nsqadmin1.Exit()
@@ -453,7 +457,7 @@ func TestHTTPPauseTopicPOST(t *testing.T) {
 	test.Nil(t, err)
 	_, _ = io.ReadAll(resp.Body)
 	test.Equal(t, 200, resp.StatusCode)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	url = fmt.Sprintf("http://%s/api/topics/%s", nsqadmin1.RealHTTPAddr(), topicName)
 	body, _ = json.Marshal(map[string]interface{}{
@@ -463,12 +467,12 @@ func TestHTTPPauseTopicPOST(t *testing.T) {
 	resp, err = client.Do(req)
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 }
 
 func TestHTTPPauseChannelPOST(t *testing.T) {
 	dataPath, nsqds, nsqlookupds, nsqadmin1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupds[0].Exit()
 	defer nsqadmin1.Exit()
@@ -488,7 +492,7 @@ func TestHTTPPauseChannelPOST(t *testing.T) {
 	test.Nil(t, err)
 	_, _ = io.ReadAll(resp.Body)
 	test.Equal(t, 200, resp.StatusCode)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	url = fmt.Sprintf("http://%s/api/topics/%s/ch", nsqadmin1.RealHTTPAddr(), topicName)
 	body, _ = json.Marshal(map[string]interface{}{
@@ -498,19 +502,20 @@ func TestHTTPPauseChannelPOST(t *testing.T) {
 	resp, err = client.Do(req)
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 }
 
 func TestHTTPEmptyTopicPOST(t *testing.T) {
 	dataPath, nsqds, nsqlookupds, nsqadmin1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupds[0].Exit()
 	defer nsqadmin1.Exit()
 
 	topicName := "test_empty_topic_post" + strconv.Itoa(int(time.Now().Unix()))
 	topic := nsqds[0].GetTopic(topicName)
-	topic.PutMessage(nsqd.NewMessage(nsqd.MessageID{}, []byte("1234")))
+	err := topic.PutMessage(nsqd.NewMessage(nsqd.MessageID{}, []byte("1234")))
+	test.Nil(t, err)
 	test.Equal(t, int64(1), topic.Depth())
 	time.Sleep(100 * time.Millisecond)
 
@@ -524,14 +529,14 @@ func TestHTTPEmptyTopicPOST(t *testing.T) {
 	test.Nil(t, err)
 	_, _ = io.ReadAll(resp.Body)
 	test.Equal(t, 200, resp.StatusCode)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	test.Equal(t, int64(0), topic.Depth())
 }
 
 func TestHTTPEmptyChannelPOST(t *testing.T) {
 	dataPath, nsqds, nsqlookupds, nsqadmin1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupds[0].Exit()
 	defer nsqadmin1.Exit()
@@ -539,7 +544,8 @@ func TestHTTPEmptyChannelPOST(t *testing.T) {
 	topicName := "test_empty_channel_post" + strconv.Itoa(int(time.Now().Unix()))
 	topic := nsqds[0].GetTopic(topicName)
 	channel := topic.GetChannel("ch")
-	channel.PutMessage(nsqd.NewMessage(nsqd.MessageID{}, []byte("1234")))
+	err := channel.PutMessage(nsqd.NewMessage(nsqd.MessageID{}, []byte("1234")))
+	test.Nil(t, err)
 
 	time.Sleep(100 * time.Millisecond)
 	test.Equal(t, int64(1), channel.Depth())
@@ -554,14 +560,14 @@ func TestHTTPEmptyChannelPOST(t *testing.T) {
 	test.Nil(t, err)
 	_, _ = io.ReadAll(resp.Body)
 	test.Equal(t, 200, resp.StatusCode)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	test.Equal(t, int64(0), channel.Depth())
 }
 
 func TestHTTPconfig(t *testing.T) {
 	dataPath, nsqds, nsqlookupds, nsqadmin1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupds[0].Exit()
 	defer nsqadmin1.Exit()
@@ -579,7 +585,7 @@ func TestHTTPconfig(t *testing.T) {
 	url := fmt.Sprintf("http://%s/config/nsqlookupd_http_addresses", nsqadmin1.RealHTTPAddr())
 	resp, err := http.Get(url)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	test.Equal(t, 200, resp.StatusCode)
 	origaddrs := fmt.Sprintf(`["%s"]`, nsqlookupds[0].RealHTTPAddr().String())
@@ -592,7 +598,7 @@ func TestHTTPconfig(t *testing.T) {
 	test.Nil(t, err)
 	resp, err = client.Do(req)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ = io.ReadAll(resp.Body)
 	test.Equal(t, 200, resp.StatusCode)
 	test.Equal(t, addrs, string(body))
@@ -602,7 +608,7 @@ func TestHTTPconfig(t *testing.T) {
 	test.Nil(t, err)
 	resp, err = client.Do(req)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.ReadAll(resp.Body)
 	test.Equal(t, 200, resp.StatusCode)
 	test.Equal(t, LOG_FATAL, nsqadmin1.getOpts().LogLevel)
@@ -612,7 +618,7 @@ func TestHTTPconfig(t *testing.T) {
 	test.Nil(t, err)
 	resp, err = client.Do(req)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.ReadAll(resp.Body)
 	test.Equal(t, 400, resp.StatusCode)
 }
@@ -638,7 +644,7 @@ func TestHTTPconfigCIDR(t *testing.T) {
 	url := fmt.Sprintf("http://%s/config/nsqlookupd_http_addresses", nsqadmin.RealHTTPAddr())
 	resp, err := http.Get(url)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.ReadAll(resp.Body)
 	test.Equal(t, 403, resp.StatusCode)
 }

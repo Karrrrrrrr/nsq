@@ -77,7 +77,7 @@ func Logf(logger Logger, cfgLevel LogLevel, msgLevel LogLevel, f string, args ..
 	if cfgLevel > msgLevel {
 		return
 	}
-	logger.Output(3, fmt.Sprintf(msgLevel.String()+": "+f, args...))
+	_ = logger.Output(3, fmt.Sprintf(msgLevel.String()+": "+f, args...))
 }
 
 func LogFatal(prefix string, f string, args ...interface{}) {

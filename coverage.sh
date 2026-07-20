@@ -4,10 +4,11 @@
 # Works around the fact that `go test -coverprofile` currently does not work
 # with multiple packages, see https://code.google.com/p/go/issues/detail?id=6909
 #
-# Usage: coverage.sh [--html|--coveralls]
+# Usage: coverage.sh [--html]
 #
 #     --html      Additionally create HTML report
-#     --coveralls Push coverage statistics to coveralls.io
+#
+# Coverage is pushed to coveralls.io from CI via the coverallsapp/github-action.
 #
 
 set -e
@@ -37,15 +38,7 @@ show_csv_report() {
     go tool cover -func="$profile" -o="$workdir"/coverage.csv
 }
 
-push_to_coveralls() {
-    echo "Pushing coverage statistics to coveralls.io"
-    # ignore failure to push - it happens
-    $GOPATH/bin/goveralls -coverprofile="$profile" \
-                          -service=github          \
-                          -ignore="nsqadmin/bindata.go" || true
-}
-
-generate_cover_data $(go list ./... | grep -v /vendor/)
+generate_cover_data $(go list ./...)
 show_csv_report
 
 case "$1" in
@@ -53,8 +46,6 @@ case "$1" in
     ;;
 --html)
     show_html_report ;;
---coveralls)
-    push_to_coveralls ;;
 *)
     echo >&2 "error: invalid option: $1"; exit 1 ;;
 esac

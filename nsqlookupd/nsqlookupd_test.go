@@ -55,7 +55,8 @@ func mustConnectLookupd(t *testing.T, tcpAddr *net.TCPAddr) net.Conn {
 	if err != nil {
 		t.Fatal("failed to connect to lookupd")
 	}
-	conn.Write(nsq.MagicV1)
+	_, err = conn.Write(nsq.MagicV1)
+	test.Nil(t, err)
 	return conn
 }
 
@@ -88,7 +89,8 @@ func TestBasicLookupd(t *testing.T) {
 
 	identify(t, conn)
 
-	nsq.Register(topicName, "channel1").WriteTo(conn)
+	_, err := nsq.Register(topicName, "channel1").WriteTo(conn)
+	test.Nil(t, err)
 	v, err := nsq.ReadResponse(conn)
 	test.Nil(t, err)
 	test.Equal(t, []byte("OK"), v)
@@ -136,7 +138,8 @@ func TestBasicLookupd(t *testing.T) {
 		test.Equal(t, NSQDVersion, p.Version)
 	}
 
-	conn.Close()
+	err = conn.Close()
+	test.Nil(t, err)
 	time.Sleep(10 * time.Millisecond)
 
 	// now there should be no producers, but still topic/channel entries
@@ -159,11 +162,12 @@ func TestChannelUnregister(t *testing.T) {
 	topicName := "channel_unregister"
 
 	conn := mustConnectLookupd(t, tcpAddr)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn)
 
-	nsq.Register(topicName, "ch1").WriteTo(conn)
+	_, err := nsq.Register(topicName, "ch1").WriteTo(conn)
+	test.Nil(t, err)
 	v, err := nsq.ReadResponse(conn)
 	test.Nil(t, err)
 	test.Equal(t, []byte("OK"), v)
@@ -174,7 +178,8 @@ func TestChannelUnregister(t *testing.T) {
 	channels := nsqlookupd.DB.FindRegistrations("channel", topicName, "*")
 	test.Equal(t, 1, len(channels))
 
-	nsq.UnRegister(topicName, "ch1").WriteTo(conn)
+	_, err = nsq.UnRegister(topicName, "ch1").WriteTo(conn)
+	test.Nil(t, err)
 	v, err = nsq.ReadResponse(conn)
 	test.Nil(t, err)
 	test.Equal(t, []byte("OK"), v)
@@ -206,15 +211,17 @@ func TestTombstoneRecover(t *testing.T) {
 	topicName2 := topicName + "2"
 
 	conn := mustConnectLookupd(t, tcpAddr)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn)
 
-	nsq.Register(topicName, "channel1").WriteTo(conn)
-	_, err := nsq.ReadResponse(conn)
+	_, err := nsq.Register(topicName, "channel1").WriteTo(conn)
+	test.Nil(t, err)
+	_, err = nsq.ReadResponse(conn)
 	test.Nil(t, err)
 
-	nsq.Register(topicName2, "channel2").WriteTo(conn)
+	_, err = nsq.Register(topicName2, "channel2").WriteTo(conn)
+	test.Nil(t, err)
 	_, err = nsq.ReadResponse(conn)
 	test.Nil(t, err)
 
@@ -253,12 +260,13 @@ func TestTombstoneUnregister(t *testing.T) {
 	topicName := "tombstone_unregister"
 
 	conn := mustConnectLookupd(t, tcpAddr)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn)
 
-	nsq.Register(topicName, "channel1").WriteTo(conn)
-	_, err := nsq.ReadResponse(conn)
+	_, err := nsq.Register(topicName, "channel1").WriteTo(conn)
+	test.Nil(t, err)
+	_, err = nsq.ReadResponse(conn)
 	test.Nil(t, err)
 
 	endpoint := fmt.Sprintf("http://%s/topic/tombstone?topic=%s&node=%s:%d",
@@ -273,7 +281,8 @@ func TestTombstoneUnregister(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 0, len(pr.Producers))
 
-	nsq.UnRegister(topicName, "").WriteTo(conn)
+	_, err = nsq.UnRegister(topicName, "").WriteTo(conn)
+	test.Nil(t, err)
 	_, err = nsq.ReadResponse(conn)
 	test.Nil(t, err)
 
@@ -297,12 +306,13 @@ func TestInactiveNodes(t *testing.T) {
 	topicName := "inactive_nodes"
 
 	conn := mustConnectLookupd(t, tcpAddr)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn)
 
-	nsq.Register(topicName, "channel1").WriteTo(conn)
-	_, err := nsq.ReadResponse(conn)
+	_, err := nsq.Register(topicName, "channel1").WriteTo(conn)
+	test.Nil(t, err)
+	_, err = nsq.ReadResponse(conn)
 	test.Nil(t, err)
 
 	ci := clusterinfo.New(nil, http_api.NewClient(nil, ConnectTimeout, RequestTimeout))
@@ -330,12 +340,13 @@ func TestTombstonedNodes(t *testing.T) {
 	topicName := "inactive_nodes"
 
 	conn := mustConnectLookupd(t, tcpAddr)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn)
 
-	nsq.Register(topicName, "channel1").WriteTo(conn)
-	_, err := nsq.ReadResponse(conn)
+	_, err := nsq.Register(topicName, "channel1").WriteTo(conn)
+	test.Nil(t, err)
+	_, err = nsq.ReadResponse(conn)
 	test.Nil(t, err)
 
 	ci := clusterinfo.New(nil, http_api.NewClient(nil, ConnectTimeout, RequestTimeout))
