@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/nsqio/go-nsq"
 	"github.com/nsqio/nsq/internal/app"
@@ -71,7 +70,7 @@ func (th *TailHandler) HandleMessage(m *nsq.Message) error {
 func main() {
 	cfg := nsq.NewConfig()
 
-	flag.Var(&nsq.ConfigFlag{cfg}, "consumer-opt", "option to passthrough to nsq.Consumer (may be given multiple times, http://godoc.org/github.com/nsqio/go-nsq#Config)")
+	flag.Var(&nsq.ConfigFlag{Config: cfg}, "consumer-opt", "option to passthrough to nsq.Consumer (may be given multiple times, http://godoc.org/github.com/nsqio/go-nsq#Config)")
 	flag.Parse()
 
 	if *showVersion {
@@ -80,7 +79,6 @@ func main() {
 	}
 
 	if *channel == "" {
-		rand.Seed(time.Now().UnixNano())
 		*channel = fmt.Sprintf("tail%06d#ephemeral", rand.Int()%999999)
 	}
 

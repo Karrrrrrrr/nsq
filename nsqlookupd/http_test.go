@@ -88,7 +88,7 @@ func makeChannel(nsqlookupd *NSQLookupd, topicName string, channelName string) {
 
 func TestPing(t *testing.T) {
 	dataPath, nsqds, nsqlookupd1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupd1.Exit()
 
@@ -99,14 +99,15 @@ func TestPing(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	err = resp.Body.Close()
+	test.Nil(t, err)
 
 	test.Equal(t, []byte("OK"), body)
 }
 
 func TestInfo(t *testing.T) {
 	dataPath, nsqds, nsqlookupd1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupd1.Exit()
 
@@ -117,7 +118,8 @@ func TestInfo(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	err = resp.Body.Close()
+	test.Nil(t, err)
 
 	t.Logf("%s", body)
 	info := InfoDoc{}
@@ -128,7 +130,7 @@ func TestInfo(t *testing.T) {
 
 func TestCreateTopic(t *testing.T) {
 	dataPath, nsqds, nsqlookupd1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupd1.Exit()
 
@@ -142,7 +144,8 @@ func TestCreateTopic(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	err = resp.Body.Close()
+	test.Nil(t, err)
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -158,7 +161,7 @@ func TestCreateTopic(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -173,7 +176,7 @@ func TestCreateTopic(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	test.Equal(t, []byte(""), body)
@@ -181,7 +184,7 @@ func TestCreateTopic(t *testing.T) {
 
 func TestDeleteTopic(t *testing.T) {
 	dataPath, nsqds, nsqlookupd1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupd1.Exit()
 
@@ -195,7 +198,7 @@ func TestDeleteTopic(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -212,7 +215,7 @@ func TestDeleteTopic(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	test.Equal(t, []byte(""), body)
@@ -228,7 +231,7 @@ func TestDeleteTopic(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	test.Equal(t, []byte(""), body)
@@ -236,7 +239,7 @@ func TestDeleteTopic(t *testing.T) {
 
 func TestGetChannels(t *testing.T) {
 	dataPath, nsqds, nsqlookupd1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupd1.Exit()
 
@@ -251,7 +254,7 @@ func TestGetChannels(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -270,7 +273,7 @@ func TestGetChannels(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &ch)
@@ -289,7 +292,7 @@ func TestGetChannels(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &ch)
@@ -300,7 +303,7 @@ func TestGetChannels(t *testing.T) {
 
 func TestCreateChannel(t *testing.T) {
 	dataPath, nsqds, nsqlookupd1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupd1.Exit()
 
@@ -314,7 +317,7 @@ func TestCreateChannel(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -330,7 +333,7 @@ func TestCreateChannel(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -346,7 +349,7 @@ func TestCreateChannel(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -362,7 +365,7 @@ func TestCreateChannel(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -377,7 +380,7 @@ func TestCreateChannel(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	test.Equal(t, []byte(""), body)
@@ -385,7 +388,7 @@ func TestCreateChannel(t *testing.T) {
 
 func TestDeleteChannel(t *testing.T) {
 	dataPath, nsqds, nsqlookupd1 := bootstrapNSQCluster(t)
-	defer os.RemoveAll(dataPath)
+	defer func() { _ = os.RemoveAll(dataPath) }()
 	defer nsqds[0].Exit()
 	defer nsqlookupd1.Exit()
 
@@ -399,7 +402,7 @@ func TestDeleteChannel(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -415,7 +418,7 @@ func TestDeleteChannel(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -431,7 +434,7 @@ func TestDeleteChannel(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -447,7 +450,7 @@ func TestDeleteChannel(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -463,7 +466,7 @@ func TestDeleteChannel(t *testing.T) {
 	test.Equal(t, 404, resp.StatusCode)
 	test.Equal(t, "Not Found", http.StatusText(resp.StatusCode))
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -477,7 +480,7 @@ func TestDeleteChannel(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	test.Equal(t, []byte(""), body)

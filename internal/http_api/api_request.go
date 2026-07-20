@@ -63,9 +63,12 @@ retry:
 	}
 
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	closeErr := resp.Body.Close()
 	if err != nil {
 		return err
+	}
+	if closeErr != nil {
+		return closeErr
 	}
 	if resp.StatusCode != 200 {
 		if resp.StatusCode == 403 && !strings.HasPrefix(endpoint, "https") {
@@ -114,9 +117,12 @@ retry:
 	}
 
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	closeErr := resp.Body.Close()
 	if err != nil {
 		return err
+	}
+	if closeErr != nil {
+		return closeErr
 	}
 	if resp.StatusCode != 200 {
 		if resp.StatusCode == 403 && !strings.HasPrefix(endpoint, "https") {

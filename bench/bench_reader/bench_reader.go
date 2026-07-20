@@ -73,25 +73,46 @@ func subWorker(td time.Duration, workers int, tcpAddr string, topic string, chan
 	if err != nil {
 		panic(err.Error())
 	}
-	conn.Write(nsq.MagicV2)
+	_, err = conn.Write(nsq.MagicV2)
+	if err != nil {
+		panic(err.Error())
+	}
 	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
 	ci := make(map[string]interface{})
 	ci["client_id"] = "reader"
 	ci["hostname"] = "reader"
 	ci["user_agent"] = fmt.Sprintf("bench_reader/%s", nsq.VERSION)
 	cmd, _ := nsq.Identify(ci)
-	cmd.WriteTo(rw)
-	nsq.Subscribe(topic, channel).WriteTo(rw)
+	_, err = cmd.WriteTo(rw)
+	if err != nil {
+		panic(err.Error())
+	}
+	_, err = nsq.Subscribe(topic, channel).WriteTo(rw)
+	if err != nil {
+		panic(err.Error())
+	}
 	rdyChan <- 1
 	<-goChan
-	nsq.Ready(*rdy).WriteTo(rw)
-	rw.Flush()
-	nsq.ReadResponse(rw)
-	nsq.ReadResponse(rw)
+	_, err = nsq.Ready(*rdy).WriteTo(rw)
+	if err != nil {
+		panic(err.Error())
+	}
+	err = rw.Flush()
+	if err != nil {
+		panic(err.Error())
+	}
+	_, err = nsq.ReadResponse(rw)
+	if err != nil {
+		panic(err.Error())
+	}
+	_, err = nsq.ReadResponse(rw)
+	if err != nil {
+		panic(err.Error())
+	}
 	var msgCount int64
 	go func() {
 		time.Sleep(td)
-		conn.Close()
+		_ = conn.Close()
 	}()
 	for {
 		resp, err := nsq.ReadResponse(rw)
@@ -114,10 +135,16 @@ func subWorker(td time.Duration, workers int, tcpAddr string, topic string, chan
 		if err != nil {
 			panic(err.Error())
 		}
-		nsq.Finish(msg.ID).WriteTo(rw)
+		_, err = nsq.Finish(msg.ID).WriteTo(rw)
+		if err != nil {
+			panic(err.Error())
+		}
 		msgCount++
 		if float64(msgCount%int64(*rdy)) > float64(*rdy)*0.75 {
-			rw.Flush()
+			err = rw.Flush()
+			if err != nil {
+				panic(err.Error())
+			}
 		}
 	}
 	atomic.AddInt64(&totalMsgCount, msgCount)

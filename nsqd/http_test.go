@@ -1,5 +1,7 @@
 package nsqd
 
+//nolint:errcheck
+
 import (
 	"bytes"
 	"crypto/tls"
@@ -40,7 +42,7 @@ func TestHTTPpub(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_http_pub" + strconv.Itoa(int(time.Now().Unix()))
@@ -50,7 +52,7 @@ func TestHTTPpub(t *testing.T) {
 	url := fmt.Sprintf("http://%s/pub?topic=%s", httpAddr, topicName)
 	resp, err := http.Post(url, "application/octet-stream", buf)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	test.Equal(t, "OK", string(body))
 
@@ -63,7 +65,7 @@ func TestHTTPpubEmpty(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_http_pub_empty" + strconv.Itoa(int(time.Now().Unix()))
@@ -73,7 +75,7 @@ func TestHTTPpubEmpty(t *testing.T) {
 	url := fmt.Sprintf("http://%s/pub?topic=%s", httpAddr, topicName)
 	resp, err := http.Post(url, "application/octet-stream", buf)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, `{"message":"MSG_EMPTY"}`, string(body))
@@ -87,7 +89,7 @@ func TestHTTPmpub(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_http_mpub" + strconv.Itoa(int(time.Now().Unix()))
@@ -103,7 +105,7 @@ func TestHTTPmpub(t *testing.T) {
 	url := fmt.Sprintf("http://%s/mpub?topic=%s", httpAddr, topicName)
 	resp, err := http.Post(url, "application/octet-stream", buf)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	test.Equal(t, "OK", string(body))
 
@@ -116,7 +118,7 @@ func TestHTTPmpubEmpty(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_http_mpub_empty" + strconv.Itoa(int(time.Now().Unix()))
@@ -134,7 +136,7 @@ func TestHTTPmpubEmpty(t *testing.T) {
 	url := fmt.Sprintf("http://%s/mpub?topic=%s", httpAddr, topicName)
 	resp, err := http.Post(url, "application/octet-stream", buf)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	test.Equal(t, "OK", string(body))
 
@@ -147,7 +149,7 @@ func TestHTTPmpubBinary(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_http_mpub_bin" + strconv.Itoa(int(time.Now().Unix()))
@@ -163,7 +165,7 @@ func TestHTTPmpubBinary(t *testing.T) {
 	url := fmt.Sprintf("http://%s/mpub?topic=%s&binary=true", httpAddr, topicName)
 	resp, err := http.Post(url, "application/octet-stream", buf)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	test.Equal(t, "OK", string(body))
 
@@ -176,7 +178,7 @@ func TestHTTPmpubForNonNormalizedBinaryParam(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_http_mpub_bin" + strconv.Itoa(int(time.Now().Unix()))
@@ -192,7 +194,7 @@ func TestHTTPmpubForNonNormalizedBinaryParam(t *testing.T) {
 	url := fmt.Sprintf("http://%s/mpub?topic=%s&binary=non_normalized_binary_param", httpAddr, topicName)
 	resp, err := http.Post(url, "application/octet-stream", buf)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	test.Equal(t, "OK", string(body))
 
@@ -205,7 +207,7 @@ func TestHTTPpubDefer(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_http_pub_defer" + strconv.Itoa(int(time.Now().Unix()))
@@ -216,7 +218,7 @@ func TestHTTPpubDefer(t *testing.T) {
 	url := fmt.Sprintf("http://%s/pub?topic=%s&defer=%d", httpAddr, topicName, 1000)
 	resp, err := http.Post(url, "application/octet-stream", buf)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	test.Equal(t, "OK", string(body))
 
@@ -236,7 +238,7 @@ func TestHTTPSRequire(t *testing.T) {
 	opts.TLSKey = "./test/certs/server.key"
 	opts.TLSClientAuthPolicy = "require"
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_http_pub_req" + strconv.Itoa(int(time.Now().Unix()))
@@ -264,7 +266,7 @@ func TestHTTPSRequire(t *testing.T) {
 	url = fmt.Sprintf("https://%s/pub?topic=%s", httpsAddr, topicName)
 	resp, err = client.Post(url, "application/octet-stream", buf)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	test.Equal(t, "OK", string(body))
 
@@ -282,7 +284,7 @@ func TestHTTPSRequireVerify(t *testing.T) {
 	opts.TLSRootCAFile = "./test/certs/ca.pem"
 	opts.TLSClientAuthPolicy = "require-verify"
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	httpsAddr := nsqd.httpsListener.Addr().(*net.TCPAddr)
@@ -328,7 +330,7 @@ func TestHTTPSRequireVerify(t *testing.T) {
 	url = fmt.Sprintf("https://%s/pub?topic=%s", httpsAddr, topicName)
 	resp, err = client.Post(url, "application/octet-stream", buf)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	test.Equal(t, "OK", string(body))
 
@@ -347,7 +349,7 @@ func TestTLSRequireVerifyExceptHTTP(t *testing.T) {
 	opts.TLSClientAuthPolicy = "require-verify"
 	opts.TLSRequired = TLSRequiredExceptHTTP
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_http_req_verf_except_http" + strconv.Itoa(int(time.Now().Unix()))
@@ -358,7 +360,7 @@ func TestTLSRequireVerifyExceptHTTP(t *testing.T) {
 	url := fmt.Sprintf("http://%s/pub?topic=%s", httpAddr, topicName)
 	resp, err := http.Post(url, "application/octet-stream", buf)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	test.Equal(t, "OK", string(body))
 
@@ -371,7 +373,7 @@ func TestHTTPV1TopicChannel(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	topicName := "test_http_topic_channel2" + strconv.Itoa(int(time.Now().Unix()))
@@ -382,7 +384,7 @@ func TestHTTPV1TopicChannel(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	test.Equal(t, "", string(body))
 	test.Equal(t, "nsq; version=1.0", resp.Header.Get("X-NSQ-Content-Type"))
 
@@ -391,7 +393,7 @@ func TestHTTPV1TopicChannel(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	test.Equal(t, "", string(body))
 	test.Equal(t, "nsq; version=1.0", resp.Header.Get("X-NSQ-Content-Type"))
 
@@ -411,7 +413,7 @@ func TestHTTPV1TopicChannel(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -424,7 +426,7 @@ func TestHTTPV1TopicChannel(t *testing.T) {
 	test.Equal(t, 404, resp.StatusCode)
 	test.Equal(t, "Not Found", http.StatusText(resp.StatusCode))
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -436,7 +438,7 @@ func TestHTTPV1TopicChannel(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	test.Equal(t, "", string(body))
 	test.Equal(t, "nsq; version=1.0", resp.Header.Get("X-NSQ-Content-Type"))
 
@@ -447,7 +449,7 @@ func TestHTTPV1TopicChannel(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	test.Equal(t, "", string(body))
 	test.Equal(t, "nsq; version=1.0", resp.Header.Get("X-NSQ-Content-Type"))
 
@@ -458,7 +460,7 @@ func TestHTTPV1TopicChannel(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	test.Equal(t, "", string(body))
 	test.Equal(t, "nsq; version=1.0", resp.Header.Get("X-NSQ-Content-Type"))
 
@@ -469,7 +471,7 @@ func TestHTTPV1TopicChannel(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	test.Equal(t, "", string(body))
 	test.Equal(t, "nsq; version=1.0", resp.Header.Get("X-NSQ-Content-Type"))
 
@@ -480,7 +482,7 @@ func TestHTTPV1TopicChannel(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	test.Equal(t, "", string(body))
 	test.Equal(t, "nsq; version=1.0", resp.Header.Get("X-NSQ-Content-Type"))
 
@@ -492,7 +494,7 @@ func TestHTTPV1TopicChannel(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	test.Equal(t, "", string(body))
 	test.Equal(t, "nsq; version=1.0", resp.Header.Get("X-NSQ-Content-Type"))
 
@@ -506,12 +508,12 @@ func TestHTTPClientStats(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	tcpAddr, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	conn, err := mustConnectNSQD(tcpAddr)
 	test.Nil(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	identify(t, conn, nil, frameTypeResponse)
 	sub(t, conn, topicName, "ch")
@@ -568,7 +570,7 @@ func TestHTTPgetStatusJSON(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	nsqd.startTime = testTime
@@ -577,7 +579,7 @@ func TestHTTPgetStatusJSON(t *testing.T) {
 	url := fmt.Sprintf("http://%s/stats?format=json", httpAddr)
 	resp, err := http.Get(url)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	test.Equal(t, 200, resp.StatusCode)
 	test.Equal(t, true, strings.HasPrefix(string(body), expectedJSON))
@@ -588,7 +590,7 @@ func TestHTTPgetStatusText(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	nsqd.startTime = testTime
@@ -596,7 +598,7 @@ func TestHTTPgetStatusText(t *testing.T) {
 	url := fmt.Sprintf("http://%s/stats?format=text", httpAddr)
 	resp, err := http.Get(url)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	test.Equal(t, 200, resp.StatusCode)
 	test.NotNil(t, body)
@@ -616,13 +618,13 @@ func TestHTTPconfig(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	url := fmt.Sprintf("http://%s/config/nsqlookupd_tcp_addresses", httpAddr)
 	resp, err := http.Get(url)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	test.Equal(t, 200, resp.StatusCode)
 	test.Equal(t, "[]", string(body))
@@ -634,7 +636,7 @@ func TestHTTPconfig(t *testing.T) {
 	test.Nil(t, err)
 	resp, err = client.Do(req)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ = io.ReadAll(resp.Body)
 	test.Equal(t, 200, resp.StatusCode)
 	test.Equal(t, addrs, string(body))
@@ -644,7 +646,7 @@ func TestHTTPconfig(t *testing.T) {
 	test.Nil(t, err)
 	resp, err = client.Do(req)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.ReadAll(resp.Body)
 	test.Equal(t, 200, resp.StatusCode)
 	test.Equal(t, LOG_FATAL, nsqd.getOpts().LogLevel)
@@ -654,7 +656,7 @@ func TestHTTPconfig(t *testing.T) {
 	test.Nil(t, err)
 	resp, err = client.Do(req)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.ReadAll(resp.Body)
 	test.Equal(t, 400, resp.StatusCode)
 }
@@ -663,13 +665,13 @@ func TestHTTPerrors(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	url := fmt.Sprintf("http://%s/stats", httpAddr)
 	resp, err := http.Post(url, "text/plain", nil)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	test.Equal(t, 405, resp.StatusCode)
 	test.Equal(t, `{"message":"METHOD_NOT_ALLOWED"}`, string(body))
@@ -677,7 +679,7 @@ func TestHTTPerrors(t *testing.T) {
 	url = fmt.Sprintf("http://%s/not_found", httpAddr)
 	resp, err = http.Get(url)
 	test.Nil(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ = io.ReadAll(resp.Body)
 	test.Equal(t, 404, resp.StatusCode)
 	test.Equal(t, `{"message":"NOT_FOUND"}`, string(body))
@@ -687,7 +689,7 @@ func TestDeleteTopic(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	em := ErrMessage{}
@@ -698,7 +700,7 @@ func TestDeleteTopic(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -713,7 +715,7 @@ func TestDeleteTopic(t *testing.T) {
 	test.Equal(t, 404, resp.StatusCode)
 	test.Equal(t, "Not Found", http.StatusText(resp.StatusCode))
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -726,7 +728,7 @@ func TestDeleteTopic(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	test.Equal(t, []byte(""), body)
@@ -736,7 +738,7 @@ func TestEmptyTopic(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	em := ErrMessage{}
@@ -747,7 +749,7 @@ func TestEmptyTopic(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -762,7 +764,7 @@ func TestEmptyTopic(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -775,7 +777,7 @@ func TestEmptyTopic(t *testing.T) {
 	test.Equal(t, 404, resp.StatusCode)
 	test.Equal(t, "Not Found", http.StatusText(resp.StatusCode))
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -788,7 +790,7 @@ func TestEmptyTopic(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	test.Equal(t, []byte(""), body)
@@ -798,7 +800,7 @@ func TestEmptyChannel(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	em := ErrMessage{}
@@ -809,7 +811,7 @@ func TestEmptyChannel(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -824,7 +826,7 @@ func TestEmptyChannel(t *testing.T) {
 	test.Equal(t, 400, resp.StatusCode)
 	test.Equal(t, "Bad Request", http.StatusText(resp.StatusCode))
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -839,7 +841,7 @@ func TestEmptyChannel(t *testing.T) {
 	test.Equal(t, 404, resp.StatusCode)
 	test.Equal(t, "Not Found", http.StatusText(resp.StatusCode))
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -854,7 +856,7 @@ func TestEmptyChannel(t *testing.T) {
 	test.Equal(t, 404, resp.StatusCode)
 	test.Equal(t, "Not Found", http.StatusText(resp.StatusCode))
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &em)
@@ -867,7 +869,7 @@ func TestEmptyChannel(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	test.Equal(t, []byte(""), body)
@@ -877,7 +879,7 @@ func TestInfo(t *testing.T) {
 	opts := NewOptions()
 	opts.Logger = test.NewTestLogger(t)
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	defer nsqd.Exit()
 
 	info := InfoDoc{}
@@ -887,7 +889,7 @@ func TestInfo(t *testing.T) {
 	test.Nil(t, err)
 	test.Equal(t, 200, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	t.Logf("%s", body)
 	err = json.Unmarshal(body, &info)
@@ -902,7 +904,7 @@ func BenchmarkHTTPpub(b *testing.B) {
 	opts.Logger = test.NewTestLogger(b)
 	opts.MemQueueSize = int64(b.N)
 	_, httpAddr, nsqd := mustStartNSQD(opts)
-	defer os.RemoveAll(opts.DataPath)
+	defer func() { _ = os.RemoveAll(opts.DataPath) }()
 	msg := make([]byte, 256)
 	topicName := "bench_http_pub" + strconv.Itoa(int(time.Now().Unix()))
 	url := fmt.Sprintf("http://%s/pub?topic=%s", httpAddr, topicName)
@@ -925,7 +927,7 @@ func BenchmarkHTTPpub(b *testing.B) {
 				if !bytes.Equal(body, []byte("OK")) {
 					panic("bad response")
 				}
-				resp.Body.Close()
+				_ = resp.Body.Close()
 			}
 			wg.Done()
 		}()

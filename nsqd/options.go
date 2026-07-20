@@ -119,7 +119,9 @@ func NewOptions() *Options {
 	}
 
 	h := md5.New()
-	io.WriteString(h, hostname)
+	if _, err := io.WriteString(h, hostname); err != nil {
+		log.Fatal(err)
+	}
 	defaultID := int64(crc32.ChecksumIEEE(h.Sum(nil)) % 1024)
 
 	return &Options{

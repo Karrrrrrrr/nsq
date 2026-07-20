@@ -4,11 +4,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"math/rand"
 	"os"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/judwhite/go-svc"
@@ -34,9 +32,9 @@ func (p *program) Init(env svc.Environment) error {
 	opts := nsqd.NewOptions()
 
 	flagSet := nsqdFlagSet(opts)
-	flagSet.Parse(os.Args[1:])
-
-	rand.Seed(time.Now().UTC().UnixNano())
+	if err := flagSet.Parse(os.Args[1:]); err != nil {
+		return err
+	}
 
 	if flagSet.Lookup("version").Value.(flag.Getter).Get().(bool) {
 		fmt.Println(version.String("nsqd"))
@@ -78,7 +76,9 @@ func (p *program) Start() error {
 	go func() {
 		err := p.nsqd.Main()
 		if err != nil {
-			p.Stop()
+			if stopErr := p.Stop(); stopErr != nil {
+				logFatal("failed to stop nsqd - %s", stopErr)
+			}
 			os.Exit(1)
 		}
 	}()

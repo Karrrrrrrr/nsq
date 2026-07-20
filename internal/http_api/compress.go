@@ -50,7 +50,7 @@ func CompressHandler(h http.Handler) http.Handler {
 				w.Header().Add("Vary", "Accept-Encoding")
 
 				gw := gzip.NewWriter(w)
-				defer gw.Close()
+				defer func() { _ = gw.Close() }()
 
 				h, hok := w.(http.Hijacker)
 				if !hok { /* w is not Hijacker... oh well... */
@@ -69,7 +69,7 @@ func CompressHandler(h http.Handler) http.Handler {
 				w.Header().Add("Vary", "Accept-Encoding")
 
 				fw, _ := flate.NewWriter(w, flate.DefaultCompression)
-				defer fw.Close()
+				defer func() { _ = fw.Close() }()
 
 				h, hok := w.(http.Hijacker)
 				if !hok { /* w is not Hijacker... oh well... */

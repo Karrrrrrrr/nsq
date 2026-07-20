@@ -14,7 +14,10 @@ func TestConfigFlagParsing(t *testing.T) {
 	opts.Logger = test.NewTestLogger(t)
 
 	flagSet := nsqlookupdFlagSet(opts)
-	flagSet.Parse([]string{})
+	err := flagSet.Parse([]string{})
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
 
 	cfg := config{"log_level": "debug"}
 	cfg.Validate()

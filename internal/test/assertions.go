@@ -8,6 +8,7 @@ import (
 )
 
 func Equal(t *testing.T, expected, actual interface{}) {
+	t.Helper()
 	if !reflect.DeepEqual(expected, actual) {
 		_, file, line, _ := runtime.Caller(1)
 		t.Logf("\033[31m%s:%d:\n\n\t   %#v (expected)\n\n\t!= %#v (actual)\033[39m\n\n",
@@ -17,6 +18,7 @@ func Equal(t *testing.T, expected, actual interface{}) {
 }
 
 func NotEqual(t *testing.T, expected, actual interface{}) {
+	t.Helper()
 	if reflect.DeepEqual(expected, actual) {
 		_, file, line, _ := runtime.Caller(1)
 		t.Logf("\033[31m%s:%d:\n\n\tnexp: %#v\n\n\tgot:  %#v\033[39m\n\n",
@@ -26,6 +28,7 @@ func NotEqual(t *testing.T, expected, actual interface{}) {
 }
 
 func Nil(t *testing.T, object interface{}) {
+	t.Helper()
 	if !isNil(object) {
 		_, file, line, _ := runtime.Caller(1)
 		t.Logf("\033[31m%s:%d:\n\n\t   <nil> (expected)\n\n\t!= %#v (actual)\033[39m\n\n",
@@ -35,6 +38,7 @@ func Nil(t *testing.T, object interface{}) {
 }
 
 func NotNil(t *testing.T, object interface{}) {
+	t.Helper()
 	if isNil(object) {
 		_, file, line, _ := runtime.Caller(1)
 		t.Logf("\033[31m%s:%d:\n\n\tExpected value not to be <nil>\033[39m\n\n",

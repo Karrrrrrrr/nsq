@@ -139,7 +139,7 @@ func (s *httpServer) indexHandler(w http.ResponseWriter, req *http.Request, ps h
 	}).Parse(string(asset))
 
 	w.Header().Set("Content-Type", "text/html")
-	t.Execute(w, struct {
+	err := t.Execute(w, struct {
 		Version             string
 		ProxyGraphite       bool
 		GraphEnabled        bool
@@ -162,6 +162,9 @@ func (s *httpServer) indexHandler(w http.ResponseWriter, req *http.Request, ps h
 		NSQLookupd:          s.nsqadmin.getOpts().NSQLookupdHTTPAddresses,
 		IsAdmin:             s.isAuthorizedAdminRequest(req),
 	})
+	if err != nil {
+		return nil, http_api.Err{Code: 500, Text: "INTERNAL_ERROR"}
+	}
 
 	return nil, nil
 }
@@ -181,7 +184,7 @@ func (s *httpServer) staticAssetHandler(w http.ResponseWriter, req *http.Request
 		asset, err = staticAsset(assetName)
 	}
 	if err != nil {
-		return nil, http_api.Err{404, "NOT_FOUND"}
+		return nil, http_api.Err{Code: 404, Text: "NOT_FOUND"}
 	}
 
 	ext := path.Ext(assetName)
@@ -214,7 +217,7 @@ func (s *httpServer) topicsHandler(w http.ResponseWriter, req *http.Request, ps 
 
 	reqParams, err := http_api.NewReqParams(req)
 	if err != nil {
-		return nil, http_api.Err{400, err.Error()}
+		return nil, http_api.Err{Code: 400, Text: err.Error()}
 	}
 
 	var topics []string
@@ -227,7 +230,7 @@ func (s *httpServer) topicsHandler(w http.ResponseWriter, req *http.Request, ps 
 		pe, ok := err.(clusterinfo.PartialErr)
 		if !ok {
 			s.nsqadmin.logf(LOG_ERROR, "failed to get topics - %s", err)
-			return nil, http_api.Err{502, fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
+			return nil, http_api.Err{Code: 502, Text: fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
 		}
 		s.nsqadmin.logf(LOG_WARN, "%s", err)
 		messages = append(messages, pe.Error())
@@ -273,7 +276,7 @@ func (s *httpServer) topicHandler(w http.ResponseWriter, req *http.Request, ps h
 		pe, ok := err.(clusterinfo.PartialErr)
 		if !ok {
 			s.nsqadmin.logf(LOG_ERROR, "failed to get topic producers - %s", err)
-			return nil, http_api.Err{502, fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
+			return nil, http_api.Err{Code: 502, Text: fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
 		}
 		s.nsqadmin.logf(LOG_WARN, "%s", err)
 		messages = append(messages, pe.Error())
@@ -283,7 +286,7 @@ func (s *httpServer) topicHandler(w http.ResponseWriter, req *http.Request, ps h
 		pe, ok := err.(clusterinfo.PartialErr)
 		if !ok {
 			s.nsqadmin.logf(LOG_ERROR, "failed to get topic metadata - %s", err)
-			return nil, http_api.Err{502, fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
+			return nil, http_api.Err{Code: 502, Text: fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
 		}
 		s.nsqadmin.logf(LOG_WARN, "%s", err)
 		messages = append(messages, pe.Error())
@@ -313,7 +316,7 @@ func (s *httpServer) channelHandler(w http.ResponseWriter, req *http.Request, ps
 		pe, ok := err.(clusterinfo.PartialErr)
 		if !ok {
 			s.nsqadmin.logf(LOG_ERROR, "failed to get topic producers - %s", err)
-			return nil, http_api.Err{502, fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
+			return nil, http_api.Err{Code: 502, Text: fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
 		}
 		s.nsqadmin.logf(LOG_WARN, "%s", err)
 		messages = append(messages, pe.Error())
@@ -323,13 +326,13 @@ func (s *httpServer) channelHandler(w http.ResponseWriter, req *http.Request, ps
 		pe, ok := err.(clusterinfo.PartialErr)
 		if !ok {
 			s.nsqadmin.logf(LOG_ERROR, "failed to get channel metadata - %s", err)
-			return nil, http_api.Err{502, fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
+			return nil, http_api.Err{Code: 502, Text: fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
 		}
 		s.nsqadmin.logf(LOG_WARN, "%s", err)
 		messages = append(messages, pe.Error())
 	}
 
-	sort.Sort(clusterinfo.ClientStatsByNodeTopology{channelStats[channelName].Clients})
+	sort.Sort(clusterinfo.ClientStatsByNodeTopology{ClientStatsList: channelStats[channelName].Clients})
 
 	return struct {
 		*clusterinfo.ChannelStats
@@ -345,7 +348,7 @@ func (s *httpServer) nodesHandler(w http.ResponseWriter, req *http.Request, ps h
 		pe, ok := err.(clusterinfo.PartialErr)
 		if !ok {
 			s.nsqadmin.logf(LOG_ERROR, "failed to get nodes - %s", err)
-			return nil, http_api.Err{502, fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
+			return nil, http_api.Err{Code: 502, Text: fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
 		}
 		s.nsqadmin.logf(LOG_WARN, "%s", err)
 		messages = append(messages, pe.Error())
@@ -367,7 +370,7 @@ func (s *httpServer) nodeHandler(w http.ResponseWriter, req *http.Request, ps ht
 		pe, ok := err.(clusterinfo.PartialErr)
 		if !ok {
 			s.nsqadmin.logf(LOG_ERROR, "failed to get producers - %s", err)
-			return nil, http_api.Err{502, fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
+			return nil, http_api.Err{Code: 502, Text: fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
 		}
 		s.nsqadmin.logf(LOG_WARN, "%s", err)
 		messages = append(messages, pe.Error())
@@ -375,13 +378,13 @@ func (s *httpServer) nodeHandler(w http.ResponseWriter, req *http.Request, ps ht
 
 	producer := producers.Search(node)
 	if producer == nil {
-		return nil, http_api.Err{404, "NODE_NOT_FOUND"}
+		return nil, http_api.Err{Code: 404, Text: "NODE_NOT_FOUND"}
 	}
 
 	topicStats, _, err := s.ci.GetNSQDStats(clusterinfo.Producers{producer}, "", "", true)
 	if err != nil {
 		s.nsqadmin.logf(LOG_ERROR, "failed to get nsqd stats - %s", err)
-		return nil, http_api.Err{502, fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
+		return nil, http_api.Err{Code: 502, Text: fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
 	}
 
 	var totalClients int64
@@ -412,7 +415,7 @@ func (s *httpServer) tombstoneNodeForTopicHandler(w http.ResponseWriter, req *ht
 	var messages []string
 
 	if !s.isAuthorizedAdminRequest(req) {
-		return nil, http_api.Err{403, "FORBIDDEN"}
+		return nil, http_api.Err{Code: 403, Text: "FORBIDDEN"}
 	}
 
 	node := ps.ByName("node")
@@ -422,11 +425,11 @@ func (s *httpServer) tombstoneNodeForTopicHandler(w http.ResponseWriter, req *ht
 	}
 	err := json.NewDecoder(req.Body).Decode(&body)
 	if err != nil {
-		return nil, http_api.Err{400, "INVALID_BODY"}
+		return nil, http_api.Err{Code: 400, Text: "INVALID_BODY"}
 	}
 
 	if !protocol.IsValidTopicName(body.Topic) {
-		return nil, http_api.Err{400, "INVALID_TOPIC"}
+		return nil, http_api.Err{Code: 400, Text: "INVALID_TOPIC"}
 	}
 
 	err = s.ci.TombstoneNodeForTopic(body.Topic, node,
@@ -435,7 +438,7 @@ func (s *httpServer) tombstoneNodeForTopicHandler(w http.ResponseWriter, req *ht
 		pe, ok := err.(clusterinfo.PartialErr)
 		if !ok {
 			s.nsqadmin.logf(LOG_ERROR, "failed to tombstone node for topic - %s", err)
-			return nil, http_api.Err{502, fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
+			return nil, http_api.Err{Code: 502, Text: fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
 		}
 		s.nsqadmin.logf(LOG_WARN, "%s", err)
 		messages = append(messages, pe.Error())
@@ -457,20 +460,20 @@ func (s *httpServer) createTopicChannelHandler(w http.ResponseWriter, req *http.
 	}
 
 	if !s.isAuthorizedAdminRequest(req) {
-		return nil, http_api.Err{403, "FORBIDDEN"}
+		return nil, http_api.Err{Code: 403, Text: "FORBIDDEN"}
 	}
 
 	err := json.NewDecoder(req.Body).Decode(&body)
 	if err != nil {
-		return nil, http_api.Err{400, err.Error()}
+		return nil, http_api.Err{Code: 400, Text: err.Error()}
 	}
 
 	if !protocol.IsValidTopicName(body.Topic) {
-		return nil, http_api.Err{400, "INVALID_TOPIC"}
+		return nil, http_api.Err{Code: 400, Text: "INVALID_TOPIC"}
 	}
 
 	if len(body.Channel) > 0 && !protocol.IsValidChannelName(body.Channel) {
-		return nil, http_api.Err{400, "INVALID_CHANNEL"}
+		return nil, http_api.Err{Code: 400, Text: "INVALID_CHANNEL"}
 	}
 
 	err = s.ci.CreateTopicChannel(body.Topic, body.Channel,
@@ -479,7 +482,7 @@ func (s *httpServer) createTopicChannelHandler(w http.ResponseWriter, req *http.
 		pe, ok := err.(clusterinfo.PartialErr)
 		if !ok {
 			s.nsqadmin.logf(LOG_ERROR, "failed to create topic/channel - %s", err)
-			return nil, http_api.Err{502, fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
+			return nil, http_api.Err{Code: 502, Text: fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
 		}
 		s.nsqadmin.logf(LOG_WARN, "%s", err)
 		messages = append(messages, pe.Error())
@@ -499,7 +502,7 @@ func (s *httpServer) deleteTopicHandler(w http.ResponseWriter, req *http.Request
 	var messages []string
 
 	if !s.isAuthorizedAdminRequest(req) {
-		return nil, http_api.Err{403, "FORBIDDEN"}
+		return nil, http_api.Err{Code: 403, Text: "FORBIDDEN"}
 	}
 
 	topicName := ps.ByName("topic")
@@ -511,7 +514,7 @@ func (s *httpServer) deleteTopicHandler(w http.ResponseWriter, req *http.Request
 		pe, ok := err.(clusterinfo.PartialErr)
 		if !ok {
 			s.nsqadmin.logf(LOG_ERROR, "failed to delete topic - %s", err)
-			return nil, http_api.Err{502, fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
+			return nil, http_api.Err{Code: 502, Text: fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
 		}
 		s.nsqadmin.logf(LOG_WARN, "%s", err)
 		messages = append(messages, pe.Error())
@@ -528,7 +531,7 @@ func (s *httpServer) deleteChannelHandler(w http.ResponseWriter, req *http.Reque
 	var messages []string
 
 	if !s.isAuthorizedAdminRequest(req) {
-		return nil, http_api.Err{403, "FORBIDDEN"}
+		return nil, http_api.Err{Code: 403, Text: "FORBIDDEN"}
 	}
 
 	topicName := ps.ByName("topic")
@@ -541,7 +544,7 @@ func (s *httpServer) deleteChannelHandler(w http.ResponseWriter, req *http.Reque
 		pe, ok := err.(clusterinfo.PartialErr)
 		if !ok {
 			s.nsqadmin.logf(LOG_ERROR, "failed to delete channel - %s", err)
-			return nil, http_api.Err{502, fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
+			return nil, http_api.Err{Code: 502, Text: fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
 		}
 		s.nsqadmin.logf(LOG_WARN, "%s", err)
 		messages = append(messages, pe.Error())
@@ -573,12 +576,12 @@ func (s *httpServer) topicChannelAction(req *http.Request, topicName string, cha
 	}
 
 	if !s.isAuthorizedAdminRequest(req) {
-		return nil, http_api.Err{403, "FORBIDDEN"}
+		return nil, http_api.Err{Code: 403, Text: "FORBIDDEN"}
 	}
 
 	err := json.NewDecoder(req.Body).Decode(&body)
 	if err != nil {
-		return nil, http_api.Err{400, err.Error()}
+		return nil, http_api.Err{Code: 400, Text: err.Error()}
 	}
 
 	switch body.Action {
@@ -625,14 +628,14 @@ func (s *httpServer) topicChannelAction(req *http.Request, topicName string, cha
 			s.notifyAdminAction("empty_topic", topicName, "", "", req)
 		}
 	default:
-		return nil, http_api.Err{400, "INVALID_ACTION"}
+		return nil, http_api.Err{Code: 400, Text: "INVALID_ACTION"}
 	}
 
 	if err != nil {
 		pe, ok := err.(clusterinfo.PartialErr)
 		if !ok {
 			s.nsqadmin.logf(LOG_ERROR, "failed to %s topic/channel - %s", body.Action, err)
-			return nil, http_api.Err{502, fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
+			return nil, http_api.Err{Code: 502, Text: fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
 		}
 		s.nsqadmin.logf(LOG_WARN, "%s", err)
 		messages = append(messages, pe.Error())
@@ -659,7 +662,7 @@ func (s *httpServer) counterHandler(w http.ResponseWriter, req *http.Request, ps
 		pe, ok := err.(clusterinfo.PartialErr)
 		if !ok {
 			s.nsqadmin.logf(LOG_ERROR, "failed to get counter producer list - %s", err)
-			return nil, http_api.Err{502, fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
+			return nil, http_api.Err{Code: 502, Text: fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
 		}
 		s.nsqadmin.logf(LOG_WARN, "%s", err)
 		messages = append(messages, pe.Error())
@@ -669,7 +672,7 @@ func (s *httpServer) counterHandler(w http.ResponseWriter, req *http.Request, ps
 		pe, ok := err.(clusterinfo.PartialErr)
 		if !ok {
 			s.nsqadmin.logf(LOG_ERROR, "failed to get nsqd stats - %s", err)
-			return nil, http_api.Err{502, fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
+			return nil, http_api.Err{Code: 502, Text: fmt.Sprintf("UPSTREAM_ERROR: %s", err)}
 		}
 		s.nsqadmin.logf(LOG_WARN, "%s", err)
 		messages = append(messages, pe.Error())
@@ -700,17 +703,17 @@ func (s *httpServer) counterHandler(w http.ResponseWriter, req *http.Request, ps
 func (s *httpServer) graphiteHandler(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 	reqParams, err := http_api.NewReqParams(req)
 	if err != nil {
-		return nil, http_api.Err{400, "INVALID_REQUEST"}
+		return nil, http_api.Err{Code: 400, Text: "INVALID_REQUEST"}
 	}
 
 	metric, err := reqParams.Get("metric")
 	if err != nil || metric != "rate" {
-		return nil, http_api.Err{400, "INVALID_ARG_METRIC"}
+		return nil, http_api.Err{Code: 400, Text: "INVALID_ARG_METRIC"}
 	}
 
 	target, err := reqParams.Get("target")
 	if err != nil {
-		return nil, http_api.Err{400, "INVALID_ARG_TARGET"}
+		return nil, http_api.Err{Code: 400, Text: "INVALID_ARG_TARGET"}
 	}
 
 	params := url.Values{}
@@ -730,7 +733,7 @@ func (s *httpServer) graphiteHandler(w http.ResponseWriter, req *http.Request, p
 	err = s.client.GETV1(url, &response)
 	if err != nil {
 		s.nsqadmin.logf(LOG_ERROR, "graphite request failed - %s", err)
-		return nil, http_api.Err{500, "INTERNAL_ERROR"}
+		return nil, http_api.Err{Code: 500, Text: "INTERNAL_ERROR"}
 	}
 
 	var rateStr string
@@ -755,15 +758,15 @@ func (s *httpServer) doConfig(w http.ResponseWriter, req *http.Request, ps httpr
 		addr, _, err := net.SplitHostPort(req.RemoteAddr)
 		if err != nil {
 			s.nsqadmin.logf(LOG_ERROR, "failed to parse RemoteAddr %s", req.RemoteAddr)
-			return nil, http_api.Err{400, "INVALID_REMOTE_ADDR"}
+			return nil, http_api.Err{Code: 400, Text: "INVALID_REMOTE_ADDR"}
 		}
 		ip := net.ParseIP(addr)
 		if ip == nil {
 			s.nsqadmin.logf(LOG_ERROR, "failed to parse RemoteAddr %s", req.RemoteAddr)
-			return nil, http_api.Err{400, "INVALID_REMOTE_ADDR"}
+			return nil, http_api.Err{Code: 400, Text: "INVALID_REMOTE_ADDR"}
 		}
 		if !ipnet.Contains(ip) {
-			return nil, http_api.Err{403, "FORBIDDEN"}
+			return nil, http_api.Err{Code: 403, Text: "FORBIDDEN"}
 		}
 	}
 
@@ -773,10 +776,10 @@ func (s *httpServer) doConfig(w http.ResponseWriter, req *http.Request, ps httpr
 		readMax := int64(1024*1024 + 1)
 		body, err := io.ReadAll(io.LimitReader(req.Body, readMax))
 		if err != nil {
-			return nil, http_api.Err{500, "INTERNAL_ERROR"}
+			return nil, http_api.Err{Code: 500, Text: "INTERNAL_ERROR"}
 		}
 		if int64(len(body)) == readMax || len(body) == 0 {
-			return nil, http_api.Err{413, "INVALID_VALUE"}
+			return nil, http_api.Err{Code: 413, Text: "INVALID_VALUE"}
 		}
 
 		opts := *s.nsqadmin.getOpts()
@@ -784,24 +787,24 @@ func (s *httpServer) doConfig(w http.ResponseWriter, req *http.Request, ps httpr
 		case "nsqlookupd_http_addresses":
 			err := json.Unmarshal(body, &opts.NSQLookupdHTTPAddresses)
 			if err != nil {
-				return nil, http_api.Err{400, "INVALID_VALUE"}
+				return nil, http_api.Err{Code: 400, Text: "INVALID_VALUE"}
 			}
 		case "log_level":
 			logLevelStr := string(body)
 			logLevel, err := lg.ParseLogLevel(logLevelStr)
 			if err != nil {
-				return nil, http_api.Err{400, "INVALID_VALUE"}
+				return nil, http_api.Err{Code: 400, Text: "INVALID_VALUE"}
 			}
 			opts.LogLevel = logLevel
 		default:
-			return nil, http_api.Err{400, "INVALID_OPTION"}
+			return nil, http_api.Err{Code: 400, Text: "INVALID_OPTION"}
 		}
 		s.nsqadmin.swapOpts(&opts)
 	}
 
 	v, ok := getOptByCfgName(s.nsqadmin.getOpts(), opt)
 	if !ok {
-		return nil, http_api.Err{400, "INVALID_OPTION"}
+		return nil, http_api.Err{Code: 400, Text: "INVALID_OPTION"}
 	}
 
 	return v, nil
@@ -833,7 +836,7 @@ func getOptByCfgName(opts interface{}, name string) (interface{}, bool) {
 			continue
 		}
 		if cfgName == "" {
-			cfgName = strings.Replace(flagName, "-", "_", -1)
+			cfgName = strings.ReplaceAll(flagName, "-", "_")
 		}
 		if name != cfgName {
 			continue

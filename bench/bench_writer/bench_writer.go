@@ -76,18 +76,30 @@ func pubWorker(td time.Duration, tcpAddr string, batchSize int, batch [][]byte, 
 	if err != nil {
 		panic(err.Error())
 	}
-	conn.Write(nsq.MagicV2)
+	_, err = conn.Write(nsq.MagicV2)
+	if err != nil {
+		panic(err.Error())
+	}
 	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
 	ci := make(map[string]interface{})
 	ci["client_id"] = "writer"
 	ci["hostname"] = "writer"
 	ci["user_agent"] = fmt.Sprintf("bench_writer/%s", nsq.VERSION)
 	cmd, _ := nsq.Identify(ci)
-	cmd.WriteTo(rw)
+	_, err = cmd.WriteTo(rw)
+	if err != nil {
+		panic(err.Error())
+	}
 	rdyChan <- 1
 	<-goChan
-	rw.Flush()
-	nsq.ReadResponse(rw)
+	err = rw.Flush()
+	if err != nil {
+		panic(err.Error())
+	}
+	_, err = nsq.ReadResponse(rw)
+	if err != nil {
+		panic(err.Error())
+	}
 	var msgCount int64
 	endTime := time.Now().Add(td)
 	for {

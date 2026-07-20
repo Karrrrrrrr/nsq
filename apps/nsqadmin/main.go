@@ -87,7 +87,9 @@ func (p *program) Start() error {
 	opts := nsqadmin.NewOptions()
 
 	flagSet := nsqadminFlagSet(opts)
-	flagSet.Parse(os.Args[1:])
+	if err := flagSet.Parse(os.Args[1:]); err != nil {
+		return err
+	}
 
 	if flagSet.Lookup("version").Value.(flag.Getter).Get().(bool) {
 		fmt.Println(version.String("nsqadmin"))
@@ -114,7 +116,9 @@ func (p *program) Start() error {
 	go func() {
 		err := p.nsqadmin.Main()
 		if err != nil {
-			p.Stop()
+			if stopErr := p.Stop(); stopErr != nil {
+				logFatal("failed to stop nsqadmin - %s", stopErr)
+			}
 			os.Exit(1)
 		}
 	}()

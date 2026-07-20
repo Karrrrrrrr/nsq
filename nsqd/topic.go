@@ -119,7 +119,7 @@ func (t *Topic) getOrCreateChannel(channelName string) (*Channel, bool) {
 	channel, ok := t.channelMap[channelName]
 	if !ok {
 		deleteCallback := func(c *Channel) {
-			t.DeleteExistingChannel(c.name)
+			_ = t.DeleteExistingChannel(c.name)
 		}
 		channel = NewChannel(t.name, channelName, t.nsqd, deleteCallback)
 		t.channelMap[channelName] = channel
@@ -156,7 +156,10 @@ func (t *Topic) DeleteExistingChannel(channelName string) error {
 	// we do this before removing the channel from map below (with no lock)
 	// so that any incoming subs will error and not create a new channel
 	// to enforce ordering
-	channel.Delete()
+	err := channel.Delete()
+	if err != nil {
+		return err
+	}
 
 	t.Lock()
 	delete(t.channelMap, channelName)
@@ -377,12 +380,15 @@ func (t *Topic) exit(deleted bool) error {
 		t.Lock()
 		for _, channel := range t.channelMap {
 			delete(t.channelMap, channel.name)
-			channel.Delete()
+			_ = channel.Delete()
 		}
 		t.Unlock()
 
 		// empty the queue (deletes the backend files, too)
-		t.Empty()
+		err := t.Empty()
+		if err != nil {
+			return err
+		}
 		return t.backend.Delete()
 	}
 
@@ -398,7 +404,10 @@ func (t *Topic) exit(deleted bool) error {
 	t.RUnlock()
 
 	// write anything leftover to disk
-	t.flush()
+	err := t.flush()
+	if err != nil {
+		return err
+	}
 	return t.backend.Close()
 }
 

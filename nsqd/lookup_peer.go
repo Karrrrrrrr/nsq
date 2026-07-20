@@ -65,13 +65,17 @@ func (lp *lookupPeer) String() string {
 
 // Read implements the io.Reader interface, adding deadlines
 func (lp *lookupPeer) Read(data []byte) (int, error) {
-	lp.conn.SetReadDeadline(time.Now().Add(time.Second))
+	if err := lp.conn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		return 0, err
+	}
 	return lp.conn.Read(data)
 }
 
 // Write implements the io.Writer interface, adding deadlines
 func (lp *lookupPeer) Write(data []byte) (int, error) {
-	lp.conn.SetWriteDeadline(time.Now().Add(time.Second))
+	if err := lp.conn.SetWriteDeadline(time.Now().Add(time.Second)); err != nil {
+		return 0, err
+	}
 	return lp.conn.Write(data)
 }
 
@@ -100,7 +104,7 @@ func (lp *lookupPeer) Command(cmd *nsq.Command) ([]byte, error) {
 		lp.state = stateConnected
 		_, err = lp.Write(nsq.MagicV1)
 		if err != nil {
-			lp.Close()
+			_ = lp.Close()
 			return nil, err
 		}
 		if initialState == stateDisconnected {
@@ -115,12 +119,12 @@ func (lp *lookupPeer) Command(cmd *nsq.Command) ([]byte, error) {
 	}
 	_, err := cmd.WriteTo(lp)
 	if err != nil {
-		lp.Close()
+		_ = lp.Close()
 		return nil, err
 	}
 	resp, err := readResponseBounded(lp, lp.maxBodySize)
 	if err != nil {
-		lp.Close()
+		_ = lp.Close()
 		return nil, err
 	}
 	return resp, nil

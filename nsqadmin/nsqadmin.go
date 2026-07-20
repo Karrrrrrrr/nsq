@@ -161,7 +161,9 @@ func (n *NSQAdmin) handleAdminActions() {
 		if err != nil {
 			n.logf(LOG_ERROR, "failed to POST notification - %s", err)
 		}
-		resp.Body.Close()
+		if err := resp.Body.Close(); err != nil {
+			n.logf(LOG_ERROR, "failed to close notification response body - %s", err)
+		}
 	}
 }
 
@@ -189,7 +191,9 @@ func (n *NSQAdmin) Main() error {
 
 func (n *NSQAdmin) Exit() {
 	if n.httpListener != nil {
-		n.httpListener.Close()
+		if err := n.httpListener.Close(); err != nil {
+			n.logf(LOG_ERROR, "failed to close HTTP listener - %s", err)
+		}
 	}
 	close(n.notifications)
 	n.waitGroup.Wait()

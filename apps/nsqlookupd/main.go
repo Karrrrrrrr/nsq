@@ -61,7 +61,9 @@ func (p *program) Start() error {
 	opts := nsqlookupd.NewOptions()
 
 	flagSet := nsqlookupdFlagSet(opts)
-	flagSet.Parse(os.Args[1:])
+	if err := flagSet.Parse(os.Args[1:]); err != nil {
+		return err
+	}
 
 	if flagSet.Lookup("version").Value.(flag.Getter).Get().(bool) {
 		fmt.Println(version.String("nsqlookupd"))
@@ -88,7 +90,9 @@ func (p *program) Start() error {
 	go func() {
 		err := p.nsqlookupd.Main()
 		if err != nil {
-			p.Stop()
+			if stopErr := p.Stop(); stopErr != nil {
+				logFatal("failed to stop nsqlookupd - %s", stopErr)
+			}
 			os.Exit(1)
 		}
 	}()

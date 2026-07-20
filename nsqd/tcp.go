@@ -33,7 +33,7 @@ func (p *tcpServer) Handle(conn net.Conn) {
 	_, err := io.ReadFull(conn, buf)
 	if err != nil {
 		p.nsqd.logf(LOG_ERROR, "failed to read protocol version - %s", err)
-		conn.Close()
+		_ = conn.Close()
 		return
 	}
 	protocolMagic := string(buf)
@@ -46,8 +46,8 @@ func (p *tcpServer) Handle(conn net.Conn) {
 	case "  V2":
 		prot = &protocolV2{nsqd: p.nsqd}
 	default:
-		protocol.SendFramedResponse(conn, frameTypeError, []byte("E_BAD_PROTOCOL"))
-		conn.Close()
+		_, _ = protocol.SendFramedResponse(conn, frameTypeError, []byte("E_BAD_PROTOCOL"))
+		_ = conn.Close()
 		p.nsqd.logf(LOG_ERROR, "client(%s) bad protocol magic '%s'",
 			conn.RemoteAddr(), protocolMagic)
 		return
@@ -62,12 +62,12 @@ func (p *tcpServer) Handle(conn net.Conn) {
 	}
 
 	p.conns.Delete(conn.RemoteAddr())
-	client.Close()
+	_ = client.Close()
 }
 
 func (p *tcpServer) Close() {
 	p.conns.Range(func(k, v interface{}) bool {
-		v.(protocol.Client).Close()
+		_ = v.(protocol.Client).Close()
 		return true
 	})
 }

@@ -60,7 +60,9 @@ func flagSet() *flag.FlagSet {
 
 func main() {
 	fs := flagSet()
-	fs.Parse(os.Args[1:])
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		log.Fatal(err)
+	}
 
 	if args := fs.Args(); len(args) > 0 {
 		log.Fatalf("unknown arguments: %s", args)
@@ -119,9 +121,11 @@ func main() {
 	}
 
 	cfg := nsq.NewConfig()
-	cfgFlag := nsq.ConfigFlag{cfg}
+	cfgFlag := nsq.ConfigFlag{Config: cfg}
 	for _, opt := range opts.ConsumerOpts {
-		cfgFlag.Set(opt)
+		if err := cfgFlag.Set(opt); err != nil {
+			log.Fatal(err)
+		}
 	}
 	cfg.UserAgent = fmt.Sprintf("nsq_to_file/%s go-nsq/%s", version.Binary, nsq.VERSION)
 	cfg.MaxInFlight = opts.MaxInFlight
