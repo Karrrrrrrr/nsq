@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-GOMAXPROCS=1 go test -timeout 90s ./...
+GOMAXPROCS=1 go test -vet=all -timeout 90s ./...
 
 if [ "$GOARCH" = "amd64" ] || [ "$GOARCH" = "arm64" ]; then
     # go test: -race is only supported on linux/amd64, linux/ppc64le,
@@ -19,9 +19,6 @@ for dir in apps/*/ bench/*/; do
         echo "(skipped $dir)"
     fi
 done
-
-# disable "composite literal uses unkeyed fields"
-go vet -composites=false ./...
 
 FMTDIFF="$(find apps internal nsqd nsqlookupd -name '*.go' -exec gofmt -d '{}' ';')"
 if [ -n "$FMTDIFF" ]; then
