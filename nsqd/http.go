@@ -330,6 +330,23 @@ func (s *httpServer) doMPUB(w http.ResponseWriter, req *http.Request, ps httprou
 		}
 	}
 
+	var deferred time.Duration
+	if ds, ok := reqParams["defer"]; ok {
+		var di int64
+		di, err = strconv.ParseInt(ds[0], 10, 64)
+		if err != nil {
+			return nil, http_api.Err{Code: 400, Text: "INVALID_DEFER"}
+		}
+		deferred = time.Duration(di) * time.Millisecond
+		if deferred < 0 || deferred > s.nsqd.getOpts().MaxDeferTimeout {
+			return nil, http_api.Err{Code: 400, Text: "INVALID_DEFER"}
+		}
+	}
+
+	for _, msg := range msgs {
+		msg.deferred = deferred
+	}
+
 	err = topic.PutMessages(msgs)
 	if err != nil {
 		return nil, http_api.Err{Code: 503, Text: "EXITING"}
